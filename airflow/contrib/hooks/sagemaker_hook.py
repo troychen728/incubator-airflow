@@ -70,12 +70,14 @@ class SageMakerHook(AwsHook):
 
         if self.use_db_config:
             if not self.sagemaker_conn_id:
-                raise AirflowException("sagemaker connection id must be present to read sagemaker training jobs configuration.")
-
+                raise AirflowException("SageMaker connection id must be present to read \
+                                        SageMaker training jobs configuration.")
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
             config = sagemaker_conn.extra_dejson.copy()
-            training_job_config.update(config)
+            tempconfig = config
+            training_job_config.update(tempconfig)
+
 
         # run checks
 
@@ -85,7 +87,10 @@ class SageMakerHook(AwsHook):
     def describe_training_job(self):
         return self.get_conn().describe_training_job(TrainingJobName=self.job_name)
 
-    def create_tunining_job(self, tunning_job_config):
+    def describe_tuning_job(self):
+        return self.get_conn().describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)
+
+    def create_tuning_job(self, tuning_job_config):
 
         if self.use_db_config:
             if not self.sagemaker_conn_id:
@@ -94,8 +99,8 @@ class SageMakerHook(AwsHook):
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
             config = sagemaker_conn.extra_dejson.copy()
-            tunning_job_config.update(config)
+            tuning_job_config.update(config)
 
         return self.get_conn().create_hyper_parameter_tuning_job(
-            **tunning_job_config)
+            **tuning_job_config)
 
