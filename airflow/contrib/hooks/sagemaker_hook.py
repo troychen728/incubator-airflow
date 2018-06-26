@@ -19,11 +19,15 @@
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
+from airflow.hooks.S3_hook import S3Hook
+from urllib.parse import urlparse
+
+
 
 
 class SageMakerHook(AwsHook):
     """
-    Interact with AWS SageMaker.
+    Interact with Amazon SageMaker.
     """
 
     def __init__(self,
@@ -35,6 +39,20 @@ class SageMakerHook(AwsHook):
         self.use_db_config = use_db_config
         self.job_name = job_name
         super(SageMakerHook, self).__init__(*args, **kwargs)
+
+    @staticmethod
+    def parse_s3_url(s3url):
+        parsed_url = urlparse(s3url)
+        if parsed_url.scheme != "s3":
+            raise AirflowException("Expecting 's3' scheme, got: {} in {}".format(parsed_url.scheme, s3url))
+        return parsed_url.netloc, parsed_url.path.lstrip('/')
+
+    def check_for_url(self, s3url):
+        bucket, key = self.parse_s3_url(s3url)
+        S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        if S3Hook.check_for_key(key=key, bucket_name=bucket):
+            raise AirflowException("The input S3 Url %s does not exist ".format(s3url))
+        return True
 
     def get_conn(self):
         self.conn = self.get_client_type('sagemaker')
