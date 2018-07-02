@@ -54,10 +54,6 @@ class SageMakerHook(AwsHook):
             raise AirflowException("The input S3 Url %s does not exist ".format(s3url))
         return True
 
-    def check_valid_training_input(self, config):
-        
-
-
     def get_conn(self):
         self.conn = self.get_client_type('sagemaker')
         return self.conn

@@ -22,6 +22,7 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 
+
 class SageMakerCreateTrainingJobOperator(BaseOperator):
 
     template_fields = ['training_job_config']
@@ -41,11 +42,16 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
         self.training_job_config = training_job_config
 
     def execute(self, context):
-        sagemaker = SageMakerHook(sagemaker_conn_id=self.sagemaker_conn_id, job_name=self.job_name)
+        sagemaker = SageMakerHook(
+            sagemaker_conn_id=self.sagemaker_conn_id, job_name=self.job_name)
 
         self.log.info(
             "Creating SageMaker Training Job"
         )
-
         response = sagemaker.create_training_job(self.training_job_config)
-        return response
+        if not response['ResponseMetadata']['HTTPStatusCode'] \
+           == 200:
+            raise AirflowException(
+                'Sagemaker Training Job creation failed: %s' % response)
+        else:
+            return response
