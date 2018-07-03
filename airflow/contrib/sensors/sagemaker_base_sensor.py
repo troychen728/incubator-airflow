@@ -38,13 +38,19 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
-        response = self.get_sagemaker_response()
+        try:
+            response = self.get_sagemaker_response()
+        except AttributeError:
+            raise AirflowException('Sagemaker sensor subclass get response function not implemented.')
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             self.log.info('Bad HTTP response: %s', response)
             return False
+        try:
+            state = self.state_from_response(response)
+        except ValueError:
+            raise AirflowException('Sagemaker sensor subclass get state function not implemented.')
 
-        state = self.state_from_response(response)
         self.log.info('Job currently %s', state)
 
         if state in self.NON_TERMINAL_STATES:

@@ -44,7 +44,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
         super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
 
-    def get_emr_response(self):
+    def get_sagemaker_response(self):
         sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id, job_name=self.job_name)
 
         self.log.info('Poking Sagemaker Tuning Job %s', self.job_name)

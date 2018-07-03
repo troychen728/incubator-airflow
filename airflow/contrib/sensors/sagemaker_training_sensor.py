@@ -17,18 +17,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.emr_hook import SageMakerHook
-from airflow.contrib.sensors.emr_base_sensor import SageMakerBaseSensor
+from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
 from airflow.utils import apply_defaults
 
 
 class SageMakerTrainingSensor(SageMakerBaseSensor):
     """
-    Asks for the state of the JobFlow until it reaches a terminal state.
+    Asks for the state of the training state until it reaches a terminal state.
     If it fails the sensor errors, failing the task.
 
-    :param job_flow_id: job_flow_id to check the state of
-    :type job_flow_id: string
+    :param job_name: job_name of the training instance to check the state of
+    :type job_name: string
     """
 
     NON_TERMINAL_STATES = ['InProgress', 'Stopping', 'Stopped']
@@ -44,7 +44,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
 
-    def get_emr_response(self):
+    def get_sagemaker_response(self):
         sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id, job_name=self.job_name)
 
         self.log.info('Poking Sagemaker Training Job %s', self.job_name)
