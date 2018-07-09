@@ -16,22 +16,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.hooks.S3_hook import S3Hook
-from urllib.parse import urlparse
-
-
 
 
 class SageMakerHook(AwsHook):
     """
     Interact with Amazon SageMaker.
+    sagemaker_conn_is is required for using
+    the config stored in db for training/tuning
     """
 
     def __init__(self,
-                 sagemaker_conn_id='sagemaker_default',
+                 sagemaker_conn_id=None,
                  job_name=None,
                  use_db_config=False,
                  *args, **kwargs):
@@ -39,68 +39,116 @@ class SageMakerHook(AwsHook):
         self.use_db_config = use_db_config
         self.job_name = job_name
         super(SageMakerHook, self).__init__(*args, **kwargs)
-
-    @staticmethod
-    def parse_s3_url(s3url):
-        parsed_url = urlparse(s3url)
-        if parsed_url.scheme != "s3":
-            raise AirflowException("Expecting 's3' scheme, got: {} in {}".format(parsed_url.scheme, s3url))
-        return parsed_url.netloc, parsed_url.path.lstrip('/')
+        self.conn = self.get_conn()
 
     def check_for_url(self, s3url):
-        bucket, key = self.parse_s3_url(s3url)
-        S3Hook = S3Hook(aws_conn_id=self.aws_conn_id)
-        if S3Hook.check_for_key(key=key, bucket_name=bucket):
-            raise AirflowException("The input S3 Url %s does not exist ".format(s3url))
+        """
+        check if the s3url exists
+        :param s3url: S3 url
+        :type s3url:str
+        :return: bool
+        """
+        bucket, key = S3Hook.parse_s3_url(s3url)
+        s3hook = S3Hook(aws_conn_id=self.aws_conn_id)
+        if not s3hook.check_for_bucket(bucket_name=bucket):
+            raise AirflowException("The input S3 Bucket {} does not exist ".format(bucket))
+        if not s3hook.check_for_key(key=key, bucket_name=bucket):
+            raise AirflowException("The input S3 Key {} does not exist in the Bucket"
+                                   .format(s3url, bucket))
         return True
 
+    def check_valid_training_input(self, training_config):
+        """
+        Run checks before a training starts
+        :param config: training_config
+        :type config: dict
+        :return: None
+        """
+        for channel in training_config['InputDataConfig']:
+            self.check_for_url(channel['DataSource']
+                               ['S3DataSource']['S3Uri'])
+
     def get_conn(self):
-        self.conn = self.get_client_type('sagemaker')
-        return self.conn
+        return self.get_client_type('sagemaker')
 
-    def list_training_job(self, job_name):
-        sagemaker_conn = self.get_conn()
-        return sagemaker_conn.list_training_jobs(NameContains=job_name)
+    def list_training_job(self, name_contains=None, status_equals=None):
+        """
+        List the training jobs associated with the given input
+        :param name_contains: A string in the training job name
+        :type name_contains: str
+        :param status_equals: 'InProgress'|'Completed'
+        |'Failed'|'Stopping'|'Stopped'
+        :return:dict
+        """
+        return self.conn.list_training_jobs(
+            NameContains=name_contains, StatusEquals=status_equals)
 
-    def list_tuning_job(self, job_name):
-        sagemaker_conn = self.get_conn()
-        return sagemaker_conn.list_hyper_parameter_tuning_job(NameContains=job_name)
+    def list_tuning_job(self, name_contains=None, status_equals=None):
+        """
+        List the tuning jobs associated with the given input
+        :param name_contains: A string in the training job name
+        :type name_contains: str
+        :param status_equals: 'InProgress'|'Completed'
+        |'Failed'|'Stopping'|'Stopped'
+        :return:dict
+        """
+        return self.conn.list_hyper_parameter_tuning_job(
+            NameContains=name_contains, StatusEquals=status_equals)
 
     def create_training_job(self, training_job_config):
-
+        """
+        Create a training job
+        :param training_job_config: the config for training
+        :type training_job_config: dict
+        :return: A dict that contains ARN of the training job.
+        """
         if self.use_db_config:
             if not self.sagemaker_conn_id:
                 raise AirflowException("SageMaker connection id must be present to read \
                                         SageMaker training jobs configuration.")
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
-            config = sagemaker_conn.extra_dejson.copy()
-            tempconfig = config
-            training_job_config.update(tempconfig)
+            config = copy.deepcopy(sagemaker_conn.extra_dejson)
+            training_job_config.update(config)
 
+        self.check_valid_training_input(training_job_config)
 
-        # run checks
-
-        return self.get_conn().create_training_job(
+        return self.conn.create_training_job(
             **training_job_config)
 
-    def describe_training_job(self):
-        return self.get_conn().describe_training_job(TrainingJobName=self.job_name)
-
-    def describe_tuning_job(self):
-        return self.get_conn().describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)
-
     def create_tuning_job(self, tuning_job_config):
-
+        """
+        Create a tuning job
+        :param tuning_job_config: the config for tuning
+        :type tuning_job_config: dict
+        :return: A dict that contains ARN of the tuning job.
+        """
         if self.use_db_config:
             if not self.sagemaker_conn_id:
-                raise AirflowException("sagemaker connection id must be present to read sagemaker tunning job configuration.")
+                raise AirflowException(
+                    "sagemaker connection id must be present to \
+                    read sagemaker tunning job configuration.")
 
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
             config = sagemaker_conn.extra_dejson.copy()
             tuning_job_config.update(config)
 
-        return self.get_conn().create_hyper_parameter_tuning_job(
+        return self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
 
+    def describe_training_job(self):
+        """
+        Return the training job info associated with the current job_name
+        :return: A dict contains all the training job info
+        """
+        return self.conn\
+                   .describe_training_job(TrainingJobName=self.job_name)
+
+    def describe_tuning_job(self):
+        """
+        Return the tuning job info associated with the current job_name
+        :return: A dict contains all the tuning job info
+        """
+        return self.conn\
+.describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)
