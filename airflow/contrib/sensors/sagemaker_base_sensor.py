@@ -41,7 +41,8 @@ class SageMakerBaseSensor(BaseSensorOperator):
         try:
             response = self.get_sagemaker_response()
         except AttributeError:
-            raise AirflowException('Sagemaker sensor subclass get response function not implemented.')
+            raise AirflowException(
+                'Sagemaker sensor subclass get response function not implemented.')
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             self.log.info('Bad HTTP response: %s', response)
@@ -49,7 +50,8 @@ class SageMakerBaseSensor(BaseSensorOperator):
         try:
             state = self.state_from_response(response)
         except ValueError:
-            raise AirflowException('Sagemaker sensor subclass get state function not implemented.')
+            raise AirflowException(
+                'Sagemaker sensor subclass get state function not implemented.')
 
         self.log.info('Job currently %s', state)
 

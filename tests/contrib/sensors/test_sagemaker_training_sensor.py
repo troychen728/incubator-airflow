@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 try:
     from unittest import mock
 except ImportError:
@@ -27,40 +28,42 @@ except ImportError:
         mock = None
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_training_sensor import SageMakerTrainingSensor
+from airflow.contrib.sensors.sagemaker_training_sensor \
+    import SageMakerTrainingSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
 
-DESCRIBE_TRAINING_INPROGRESS_RETURN ={
- 'TrainingJobStatus': 'InProgress',
- 'ResponseMetadata': {
+DESCRIBE_TRAINING_INPROGRESS_RETURN = {
+    'TrainingJobStatus': 'InProgress',
+    'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRAINING_COMPELETED_RETURN ={
- 'TrainingJobStatus': 'Compeleted',
- 'ResponseMetadata': {
+DESCRIBE_TRAINING_COMPELETED_RETURN = {
+    'TrainingJobStatus': 'Compeleted',
+    'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRAINING_FAILED_RETURN ={
- 'TrainingJobStatus': 'Failed',
- 'ResponseMetadata': {
+DESCRIBE_TRAINING_FAILED_RETURN = {
+    'TrainingJobStatus': 'Failed',
+    'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRAINING_STOPPING_RETURN ={
- 'TrainingJobStatus': 'Stopping',
- 'ResponseMetadata': {
+DESCRIBE_TRAINING_STOPPING_RETURN = {
+    'TrainingJobStatus': 'Stopping',
+    'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
-DESCRIBE_TRAINING_STOPPED_RETURN ={
- 'TrainingJobStatus': 'Stopped',
- 'ResponseMetadata': {
+DESCRIBE_TRAINING_STOPPED_RETURN = {
+    'TrainingJobStatus': 'Stopped',
+    'ResponseMetadata': {
         'HTTPStatusCode': 200,
     }
 }
+
 
 class TestSageMakerTrainingSensor(unittest.TestCase):
     def setUp(self):
@@ -69,41 +72,41 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
     def test_raises_errors_failed_state(self, mock_describe_job):
-            mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
-            operator = SageMakerTrainingSensor(
-                task_id='test_task',
-                poke_interval=2,
-                aws_conn_id='aws_test',
-                job_name='test_job_name'
-            )
-            self.assertRaises(AirflowException, operator.execute, None)
+        mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
+        operator = SageMakerTrainingSensor(
+            task_id='test_task',
+            poke_interval=2,
+            aws_conn_id='aws_test',
+            job_name='test_job_name'
+        )
+        self.assertRaises(AirflowException, operator.execute, None)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
     def test_calls_until_a_terminal_state(self, mock_describe_job, hook_init):
-            hook_init.return_value = None
+        hook_init.return_value = None
 
-            mock_describe_job.side_effect = [
-                DESCRIBE_TRAINING_INPROGRESS_RETURN,
-                DESCRIBE_TRAINING_STOPPING_RETURN,
-                DESCRIBE_TRAINING_STOPPED_RETURN,
-                DESCRIBE_TRAINING_COMPELETED_RETURN
-            ]
-            operator = SageMakerTrainingSensor(
-                task_id='test_task',
-                poke_interval=2,
-                aws_conn_id='aws_test',
-                job_name='test_job_name'
-            )
+        mock_describe_job.side_effect = [
+            DESCRIBE_TRAINING_INPROGRESS_RETURN,
+            DESCRIBE_TRAINING_STOPPING_RETURN,
+            DESCRIBE_TRAINING_STOPPED_RETURN,
+            DESCRIBE_TRAINING_COMPELETED_RETURN
+        ]
+        operator = SageMakerTrainingSensor(
+            task_id='test_task',
+            poke_interval=2,
+            aws_conn_id='aws_test',
+            job_name='test_job_name'
+        )
 
-            operator.execute(None)
+        operator.execute(None)
 
-            # make sure we called 4 times(terminated when its compeleted)
-            self.assertEqual(mock_describe_job.call_count, 4)
+        # make sure we called 4 times(terminated when its compeleted)
+        self.assertEqual(mock_describe_job.call_count, 4)
 
-            # make sure the hook was initialized with the specific job_name
-            hook_init.assert_called_with(aws_conn_id='aws_test', job_name='test_job_name')
+        # make sure the hook was initialized with the specific job_name
+        hook_init.assert_called_with(aws_conn_id='aws_test', job_name='test_job_name')
 
 
 if __name__ == '__main__':
