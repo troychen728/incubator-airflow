@@ -71,8 +71,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
-    def test_raises_errors_failed_state(
-         self, mock_describe_job, mock_client):
+    def test_raises_errors_failed_state(self, mock_describe_job, mock_client):
         mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
         operator = SageMakerTrainingSensor(
             task_id='test_task',
@@ -85,8 +84,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
-    def test_calls_until_a_terminal_state(
-         self, mock_describe_job, hook_init, mock_client):
+    def test_calls_until_a_terminal_state(self,
+                                          mock_describe_job, hook_init, mock_client):
         hook_init.return_value = None
 
         mock_describe_job.side_effect = [
