@@ -71,7 +71,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
-    def test_raises_errors_failed_state(self, mock_describe_job):
+    def test_raises_errors_failed_state(self, mock_describe_job, mock_client):
         mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
         operator = SageMakerTrainingSensor(
             task_id='test_task',
@@ -84,7 +84,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
     @mock.patch.object(SageMakerHook, 'describe_training_job')
-    def test_calls_until_a_terminal_state(self, mock_describe_job, hook_init):
+    def test_calls_until_a_terminal_state(self,
+                                          mock_describe_job, hook_init, mock_client):
         hook_init.return_value = None
 
         mock_describe_job.side_effect = [
@@ -97,7 +98,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test',
-            job_name='test_job_name'
+            job_name='test_job_name',
+            region_name='us-east-1'
         )
 
         operator.execute(None)
@@ -106,7 +108,9 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 4)
 
         # make sure the hook was initialized with the specific job_name
-        hook_init.assert_called_with(aws_conn_id='aws_test', job_name='test_job_name')
+        hook_init.assert_called_with(aws_conn_id='aws_test',
+                                     job_name='test_job_name',
+                                     region_name='us-east-1')
 
 
 if __name__ == '__main__':

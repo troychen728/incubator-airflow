@@ -39,13 +39,19 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     @apply_defaults
     def __init__(self,
                  job_name,
+                 region_name=None,
                  *args,
                  **kwargs):
         super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
+        self.region_name = region_name
 
     def get_sagemaker_response(self):
-        sagemaker = SageMakerHook(aws_conn_id=self.aws_conn_id, job_name=self.job_name)
+        sagemaker = SageMakerHook(
+            aws_conn_id=self.aws_conn_id,
+            job_name=self.job_name,
+            region_name=self.region_name
+        )
 
         self.log.info('Poking Sagemaker Training Job %s', self.job_name)
         return sagemaker.describe_training_job()
