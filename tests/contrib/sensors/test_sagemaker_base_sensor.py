@@ -19,115 +19,96 @@
 
 import unittest
 
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
+
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
+from airflow.contrib.sensors.sagemaker_training_sensor \
+    import SageMakerTrainingSensor
+from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
 
+DESCRIBE_TRAINING_INPROGRESS_RETURN = {
+    'TrainingJobStatus': 'InProgress',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_COMPELETED_RETURN = {
+    'TrainingJobStatus': 'Compeleted',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_FAILED_RETURN = {
+    'TrainingJobStatus': 'Failed',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_STOPPING_RETURN = {
+    'TrainingJobStatus': 'Stopping',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_STOPPED_RETURN = {
+    'TrainingJobStatus': 'Stopped',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
 
-class TestSagemakerBaseSensor(unittest.TestCase):
+
+class TestSageMakerTrainingSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
-    def test_subclasses_succeed_when_response_is_good(self):
-        class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
-
-            def get_sagemaker_response(self):
-                return {
-                    'SomeKey': {'State': 'COMPLETED'},
-                    'ResponseMetadata': {'HTTPStatusCode': 200}
-                }
-
-            def state_from_response(self, response):
-                return response['SomeKey']['State']
-
-        operator = SageMakerBaseSensorSubclass(
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'describe_training_job')
+    def test_raises_errors_failed_state(
+         self, mock_describe_job, mock_client):
+        mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
+        operator = SageMakerTrainingSensor(
             task_id='test_task',
             poke_interval=2,
-            aws_conn_id='aws_test'
+            aws_conn_id='aws_test',
+            job_name='test_job_name'
+        )
+        self.assertRaises(AirflowException, operator.execute, None)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, '__init__')
+    @mock.patch.object(SageMakerHook, 'describe_training_job')
+    def test_calls_until_a_terminal_state(
+         self, mock_describe_job, hook_init, mock_client):
+        hook_init.return_value = None
+
+        mock_describe_job.side_effect = [
+            DESCRIBE_TRAINING_INPROGRESS_RETURN,
+            DESCRIBE_TRAINING_STOPPING_RETURN,
+            DESCRIBE_TRAINING_STOPPED_RETURN,
+            DESCRIBE_TRAINING_COMPELETED_RETURN
+        ]
+        operator = SageMakerTrainingSensor(
+            task_id='test_task',
+            poke_interval=2,
+            aws_conn_id='aws_test',
+            job_name='test_job_name'
         )
 
         operator.execute(None)
 
-    def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
-        class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
+        # make sure we called 4 times(terminated when its compeleted)
+        self.assertEqual(mock_describe_job.call_count, 4)
 
-            def get_sagemaker_response(self):
-                return {
-                    'SomeKey': {'State': 'PENDING'},
-                    'ResponseMetadata': {'HTTPStatusCode': 200}
-                }
-
-            def state_from_response(self, response):
-                return response['SomeKey']['State']
-
-        operator = SageMakerBaseSensorSubclass(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test'
-        )
-
-        self.assertEqual(operator.poke(None), False)
-
-    def test_poke_returns_false_when_method_not_implemented(self):
-        class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
-
-        operator = SageMakerBaseSensorSubclass(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test'
-        )
-
-        self.assertRaises(AirflowException, operator.poke, None)
-
-    def test_poke_returns_false_when_http_response_is_bad(self):
-        class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
-
-            def get_sagemaker_response(self):
-                return {
-                    'SomeKey': {'State': 'COMPLETED'},
-                    'ResponseMetadata': {'HTTPStatusCode': 400}
-                }
-
-            def state_from_response(self, response):
-                return response['SomeKey']['State']
-
-        operator = SageMakerBaseSensorSubclass(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test'
-        )
-
-        self.assertEqual(operator.poke(None), False)
-
-    def test_poke_raises_error_when_job_has_failed(self):
-        class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
-            NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = ['FAILED']
-
-            def get_sagemaker_response(self):
-                return {
-                    'SomeKey': {'State': 'FAILED'},
-                    'ResponseMetadata': {'HTTPStatusCode': 200}
-                }
-
-            def state_from_response(self, response):
-                return response['SomeKey']['State']
-
-        operator = SageMakerBaseSensorSubclass(
-            task_id='test_task',
-            poke_interval=2,
-            aws_conn_id='aws_test'
-        )
-
-        self.assertRaises(AirflowException, operator.poke, None)
+        # make sure the hook was initialized with the specific job_name
+        hook_init.assert_called_with(aws_conn_id='aws_test', job_name='test_job_name')
 
 
 if __name__ == '__main__':
