@@ -24,8 +24,36 @@ from airflow.exceptions import AirflowException
 
 
 class SageMakerCreateTrainingJobOperator(BaseOperator):
+    """
+       Initiate a SageMaker training
 
-    template_fields = ['training_job_config']
+       This operator returns a python list with the name of objects which can be
+       used by `xcom` in the downstream task.
+
+       :param job_name: The unique SageMaker Training job name. (templated)
+       :type job_name: string
+       :param training_job_config: The (templated)
+       :type prefix: string
+       :param delimiter: the delimiter marks key hierarchy. (templated)
+       :type delimiter: string
+       :param aws_conn_id: The connection ID to use when connecting to S3 storage.
+       :type aws_conn_id: string
+
+       **Example**:
+           The following operator would list all the files
+           (excluding subfolders) from the S3
+           ``customers/2018/04/`` key in the ``data`` bucket. ::
+
+               s3_file = S3ListOperator(
+                   task_id='list_3s_files',
+                   bucket='data',
+                   prefix='customers/2018/04/',
+                   delimiter='/',
+                   aws_conn_id='aws_customers_conn'
+               )
+       """
+
+    template_fields = ['training_job_config', 'job_name']
     template_ext = ()
     ui_color = '#ededed'
 
