@@ -22,6 +22,7 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 
+
 class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
 
     template_fields = ['tunning_job_definition']
@@ -34,12 +35,12 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
                  job_name=None,
                  tunning_job_config=None,
                  *args, **kwargs):
-        super(SageMakerCreateHyperParameterTuningJobOperator, self).__init__(*args, **kwargs)
+        super(SageMakerCreateHyperParameterTuningJobOperator, self)\
+            .__init__(*args, **kwargs)
 
         self.sagemaker_conn_id = sagemaker_conn_id
         self.job_name = job_name
         self.tunning_job_config = tunning_job_config
-
 
     def execute(self, context):
         sagemaker = SageMakerHook(sagemaker_conn_id=self.sagemaker_conn_id)
@@ -49,6 +50,11 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
         )
 
         response = sagemaker.create_tunining_job(
-            tunning_job_config = self.tunning_job_config
+            tunning_job_config=self.tunning_job_config
         )
-        return response
+        if not response['ResponseMetadata']['HTTPStatusCode'] \
+           == 200:
+            raise AirflowException(
+                "Sagemaker Training Job creation failed: %s" % response)
+        else:
+            return response

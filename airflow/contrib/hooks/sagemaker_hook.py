@@ -51,7 +51,8 @@ class SageMakerHook(AwsHook):
         bucket, key = S3Hook.parse_s3_url(s3url)
         s3hook = S3Hook(aws_conn_id=self.aws_conn_id)
         if not s3hook.check_for_bucket(bucket_name=bucket):
-            raise AirflowException("The input S3 Bucket {} does not exist ".format(bucket))
+            raise AirflowException(
+                "The input S3 Bucket {} does not exist ".format(bucket))
         if not s3hook.check_for_key(key=key, bucket_name=bucket):
             raise AirflowException("The input S3 Key {} does not exist in the Bucket"
                                    .format(s3url, bucket))
@@ -151,4 +152,4 @@ class SageMakerHook(AwsHook):
         :return: A dict contains all the tuning job info
         """
         return self.conn\
-.describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)
+            .describe_hyper_parameter_tuning_job(TrainingJobName=self.job_name)

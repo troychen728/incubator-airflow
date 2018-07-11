@@ -41,7 +41,7 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
                  job_name,
                  *args,
                  **kwargs):
-        super(SageMakerTrainingSensor, self).__init__(*args, **kwargs)
+        super(SageMakerTuningSensor, self).__init__(*args, **kwargs)
         self.job_name = job_name
 
     def get_sagemaker_response(self):
