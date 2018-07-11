@@ -167,9 +167,13 @@ class TestSageMakerHook(unittest.TestCase):
 
     @mock.patch.object(SageMakerHook, 'get_client_type')
     def test_conn(self, mock_get_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
+                             region_name='us-east-1'
+                             )
         self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_conn')
-        mock_get_client.assert_called_once_with('sagemaker')
+        mock_get_client.assert_called_once_with('sagemaker',
+                                                region_name='us-east-1'
+                                                )
 
     @mock.patch.object(SageMakerHook, 'check_valid_training_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -234,7 +238,7 @@ class TestSageMakerHook(unittest.TestCase):
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
         response = hook.describe_tuning_job()
         mock_session.describe_hyper_parameter_tuning_job.\
-            assert_called_once_with(TrainingJobName=job_name)
+            assert_called_once_with(HyperParameterTuningJobName=job_name)
         assert response == 'InProgress'
 
 

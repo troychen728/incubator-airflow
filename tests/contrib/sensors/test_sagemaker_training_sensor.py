@@ -98,7 +98,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test',
-            job_name='test_job_name'
+            job_name='test_job_name',
+            region_name='us-east-1'
         )
 
         operator.execute(None)
@@ -107,7 +108,9 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         self.assertEqual(mock_describe_job.call_count, 4)
 
         # make sure the hook was initialized with the specific job_name
-        hook_init.assert_called_with(aws_conn_id='aws_test', job_name='test_job_name')
+        hook_init.assert_called_with(aws_conn_id='aws_test',
+                                     job_name='test_job_name',
+                                     region_name='us-east-1')
 
 
 if __name__ == '__main__':
