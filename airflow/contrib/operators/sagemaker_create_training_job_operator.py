@@ -27,28 +27,27 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
     """
        Initiate a SageMaker training
 
-       This operator returns a python list with the name of objects which can be
-       used by `xcom` in the downstream task.
+       This operator returns The ARN of the model created in Amazon SageMaker
 
        :param job_name: The unique SageMaker Training job name. (templated)
        :type job_name: string
-       :param training_job_config: The (templated)
-       :type prefix: string
-       :param delimiter: the delimiter marks key hierarchy. (templated)
-       :type delimiter: string
-       :param aws_conn_id: The connection ID to use when connecting to S3 storage.
+       :param training_job_config:
+       The configuration necessary to start a training job (templated)
+       :type training_job_config: dict
+       :param sagemaker_conn_id: The SageMaker connection ID to use.
+       :type aws_conn_id: string
+       :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
 
        **Example**:
-           The following operator would list all the files
-           (excluding subfolders) from the S3
-           ``customers/2018/04/`` key in the ``data`` bucket. ::
+           The following operator would start a training job when executed
 
-               s3_file = S3ListOperator(
-                   task_id='list_3s_files',
-                   bucket='data',
-                   prefix='customers/2018/04/',
-                   delimiter='/',
+            sagemaker_training =
+               SageMakerCreateTrainingJobOperator(
+                   task_id='sagemaker_training',
+                   training_job_config=config,
+                   job_name='my_sagemaker_training'
+                   sagemaker_conn_id='sagemaker_customers_conn'
                    aws_conn_id='aws_customers_conn'
                )
        """
