@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 
 class SageMakerBaseSensor(BaseSensorOperator):
     """
-    Contains general sensor behavior for EMR.
+    Contains general sensor behavior for SageMaker.
     Subclasses should implement get_emr_response() and state_from_response() methods.
     Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE constants.
     """
@@ -42,7 +42,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
             response = self.get_sagemaker_response()
         except AttributeError:
             raise AirflowException(
-                "Sagemaker sensor subclass get response function not implemented.")
+                "Method get_sagemaker_response()not implemented.")
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             self.log.info('Bad HTTP response: %s', response)
@@ -51,7 +51,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
             state = self.state_from_response(response)
         except ValueError:
             raise AirflowException(
-                "Sagemaker sensor subclass get state function not implemented.")
+                "Method state_from_response()not implemented.")
 
         self.log.info('Job currently %s', state)
 
