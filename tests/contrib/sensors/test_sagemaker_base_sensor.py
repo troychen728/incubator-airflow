@@ -42,13 +42,13 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             def state_from_response(self, response):
                 return response['SomeKey']['State']
 
-        operator = SageMakerBaseSensorSubclass(
+        sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test'
         )
 
-        operator.execute(None)
+        sensor.execute(None)
 
     def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
@@ -64,26 +64,26 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             def state_from_response(self, response):
                 return response['SomeKey']['State']
 
-        operator = SageMakerBaseSensorSubclass(
+        sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test'
         )
 
-        self.assertEqual(operator.poke(None), False)
+        self.assertEqual(sensor.poke(None), False)
 
-    def test_poke_returns_false_when_method_not_implemented(self):
+    def test_poke_raise_exception_when_method_not_implemented(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
             FAILED_STATE = ['FAILED']
 
-        operator = SageMakerBaseSensorSubclass(
+        sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test'
         )
 
-        self.assertRaises(AirflowException, operator.poke, None)
+        self.assertRaises(AirflowException, sensor.poke, None)
 
     def test_poke_returns_false_when_http_response_is_bad(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
@@ -99,13 +99,13 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             def state_from_response(self, response):
                 return response['SomeKey']['State']
 
-        operator = SageMakerBaseSensorSubclass(
+        sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test'
         )
 
-        self.assertEqual(operator.poke(None), False)
+        self.assertEqual(sensor.poke(None), False)
 
     def test_poke_raises_error_when_job_has_failed(self):
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
@@ -121,13 +121,13 @@ class TestSagemakerBaseSensor(unittest.TestCase):
             def state_from_response(self, response):
                 return response['SomeKey']['State']
 
-        operator = SageMakerBaseSensorSubclass(
+        sensor = SageMakerBaseSensorSubclass(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test'
         )
 
-        self.assertRaises(AirflowException, operator.poke, None)
+        self.assertRaises(AirflowException, sensor.poke, None)
 
 
 if __name__ == '__main__':
