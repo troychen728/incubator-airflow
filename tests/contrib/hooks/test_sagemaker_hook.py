@@ -259,7 +259,7 @@ class TestSageMakerHook(unittest.TestCase):
         response = hook_use_db_config.create_training_job(create_training_params)
         updated_config = copy.deepcopy(create_training_params)
         updated_config.update(db_config)
-        mock_session.create_training_job.assert_called_once_with(**updated_config)
+        mock_session.create_training_job.assert_called_once_with(*+*updated_config)
         self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
