@@ -61,6 +61,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                )
        """
 
+
     template_fields = ['training_job_config', 'job_name']
     template_ext = ()
     ui_color = '#ededed'
@@ -71,6 +72,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                  job_name=None,
                  training_job_config=None,
                  use_db_config=False,
+
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
@@ -84,6 +86,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
             sagemaker_conn_id=self.sagemaker_conn_id,
             job_name=self.job_name,
             use_db_config=self.use_db_config)
+
 
         self.log.info(
             "Creating SageMaker Training Job %s." % self.job_name
