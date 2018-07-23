@@ -71,6 +71,17 @@ class SageMakerHook(AwsHook):
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
 
+    def check_valid_tuning_input(self, tuning_config):
+        """
+        Run checks before a tuning job starts
+        :param config: tuning_config
+        :type config: dict
+        :return: None
+        """
+        for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
+            self.check_for_url(channel['DataSource']
+                               ['S3DataSource']['S3Uri'])
+
     def get_conn(self):
         return self.get_client_type('sagemaker', region_name=self.region_name)
 
@@ -136,6 +147,8 @@ class SageMakerHook(AwsHook):
 
             config = sagemaker_conn.extra_dejson.copy()
             tuning_job_config.update(config)
+
+        self.check_valid_tuning_input(tuning_job_config)
 
         return self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
