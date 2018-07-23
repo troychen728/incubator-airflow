@@ -73,14 +73,14 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'describe_training_job')
     def test_raises_errors_failed_state(self, mock_describe_job, mock_client):
         mock_describe_job.side_effect = [DESCRIBE_TRAINING_FAILED_RETURN]
-        operator = SageMakerTrainingSensor(
+        sensor = SageMakerTrainingSensor(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test',
             job_name='test_job_name'
         )
-        self.assertRaises(AirflowException, operator.execute, None)
-        mock_describe_job.assert_called_once()
+        self.assertRaises(AirflowException, sensor.execute, None)
+        mock_describe_job.assert_called_once_with()
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
@@ -95,7 +95,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             DESCRIBE_TRAINING_STOPPED_RETURN,
             DESCRIBE_TRAINING_COMPELETED_RETURN
         ]
-        operator = SageMakerTrainingSensor(
+        sensor = SageMakerTrainingSensor(
             task_id='test_task',
             poke_interval=2,
             aws_conn_id='aws_test',
@@ -103,7 +103,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             region_name='us-east-1'
         )
 
-        operator.execute(None)
+        sensor.execute(None)
 
         # make sure we called 4 times(terminated when its compeleted)
         self.assertEqual(mock_describe_job.call_count, 4)
