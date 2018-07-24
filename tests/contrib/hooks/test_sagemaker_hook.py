@@ -156,8 +156,8 @@ create_tuning_params = {'HyperParameterTuningJobName': job_name,
 
 db_config = {'Tags': [
     {
-     'Key': 'test-db-key',
-     'Value': 'test-db-value',
+        'Key': 'test-db-key',
+        'Value': 'test-db-value',
     },
 ]
 }
