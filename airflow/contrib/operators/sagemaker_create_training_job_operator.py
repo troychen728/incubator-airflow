@@ -81,9 +81,11 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
         self.use_db_config = use_db_config
 
     def execute(self, context):
+        if self.job_name != self.training_job_config['TrainingJobName']:
+            raise AirflowException("Job_name is not the the same as the one in "
+                                   "training_job_config")
         sagemaker = SageMakerHook(
             sagemaker_conn_id=self.sagemaker_conn_id,
-            job_name=self.job_name,
             use_db_config=self.use_db_config)
 
         self.log.info(
