@@ -80,7 +80,7 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
             job_name='test_job_name'
         )
         self.assertRaises(AirflowException, sensor.execute, None)
-        mock_describe_job.assert_called_once_with()
+        mock_describe_job.assert_called_once_with('test_job_name')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, '__init__')
