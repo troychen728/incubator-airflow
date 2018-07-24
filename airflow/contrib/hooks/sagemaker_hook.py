@@ -32,13 +32,11 @@ class SageMakerHook(AwsHook):
 
     def __init__(self,
                  sagemaker_conn_id=None,
-                 job_name=None,
                  use_db_config=False,
                  region_name=None,
                  *args, **kwargs):
         self.sagemaker_conn_id = sagemaker_conn_id
         self.use_db_config = use_db_config
-        self.job_name = job_name
         self.region_name = region_name
         super(SageMakerHook, self).__init__(*args, **kwargs)
         self.conn = self.get_conn()
@@ -71,7 +69,22 @@ class SageMakerHook(AwsHook):
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
 
+    def check_valid_tuning_input(self, tuning_config):
+        """
+        Run checks before a tuning job starts
+        :param config: tuning_config
+        :type config: dict
+        :return: None
+        """
+        for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
+            self.check_for_url(channel['DataSource']
+                               ['S3DataSource']['S3Uri'])
+
     def get_conn(self):
+        """
+        Establish an AWS connection
+        :return: a boto3 SageMaker client
+        """
         return self.get_client_type('sagemaker', region_name=self.region_name)
 
     def list_training_job(self, name_contains=None, status_equals=None):
@@ -137,22 +150,28 @@ class SageMakerHook(AwsHook):
             config = sagemaker_conn.extra_dejson.copy()
             tuning_job_config.update(config)
 
+        self.check_valid_tuning_input(tuning_job_config)
+
         return self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
 
-    def describe_training_job(self):
+    def describe_training_job(self, training_job_name):
         """
+        :param training_job_name: the name of the training job
+        :type train_job_name: string
         Return the training job info associated with the current job_name
         :return: A dict contains all the training job info
         """
         return self.conn\
-                   .describe_training_job(TrainingJobName=self.job_name)
+                   .describe_training_job(TrainingJobName=training_job_name)
 
-    def describe_tuning_job(self):
+    def describe_tuning_job(self, tuning_job_name):
         """
+        :param tuning_job_name: the name of the training job
+        :type tuning_job_name: string
         Return the tuning job info associated with the current job_name
         :return: A dict contains all the tuning job info
         """
         return self.conn\
             .describe_hyper_parameter_tuning_job(
-                HyperParameterTuningJobName=self.job_name)
+                HyperParameterTuningJobName=tuning_job_name)
