@@ -317,9 +317,8 @@ class TestSageMakerHook(unittest.TestCase):
         attrs = {'describe_training_job.return_value': 'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
-                             job_name=job_name)
-        response = hook.describe_training_job()
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.describe_training_job(job_name)
         mock_session.describe_training_job.\
             assert_called_once_with(TrainingJobName=job_name)
         self.assertEqual(response, 'InProgress')
@@ -331,9 +330,8 @@ class TestSageMakerHook(unittest.TestCase):
                  'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
-                             job_name=job_name)
-        response = hook.describe_tuning_job()
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.describe_tuning_job(job_name)
         mock_session.describe_hyper_parameter_tuning_job.\
             assert_called_once_with(HyperParameterTuningJobName=job_name)
         self.assertEqual(response, 'InProgress')
