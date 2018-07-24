@@ -49,12 +49,11 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
     def get_sagemaker_response(self):
         sagemaker = SageMakerHook(
             aws_conn_id=self.aws_conn_id,
-            job_name=self.job_name,
             region_name=self.region_name
         )
 
         self.log.info('Poking Sagemaker Training Job %s', self.job_name)
-        return sagemaker.describe_training_job()
+        return sagemaker.describe_training_job(self.job_name)
 
     def state_from_response(self, response):
         return response['TrainingJobStatus']
