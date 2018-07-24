@@ -38,16 +38,16 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.exceptions import AirflowException
 
 
-role = "test-role"
+role = 'test-role'
 
-bucket = "test-bucket"
+bucket = 'test-bucket'
 
-key = "test/data"
-data_url = "s3://{}/{}".format(bucket, key)
+key = 'test/data'
+data_url = 's3://{}/{}'.format(bucket, key)
 
-job_name = "test-job-name"
+job_name = 'test-job-name'
 
-image = "test-image"
+image = 'test-image'
 
 test_arn_return = {'TrainingJobArn': 'testarn'}
 
@@ -75,90 +75,91 @@ test_list_tuning_job_return = {
     'NextToken': 'test-token'
 }
 
-output_url = "s3://{}/test/output".format(bucket)
+output_url = 's3://{}/test/output'.format(bucket)
 create_training_params = \
     {
-        "AlgorithmSpecification": {
-            "TrainingImage": image,
-            "TrainingInputMode": "File"
+        'AlgorithmSpecification': {
+            'TrainingImage': image,
+            'TrainingInputMode': 'File'
         },
-        "RoleArn": role,
-        "OutputDataConfig": {
-            "S3OutputPath": output_url
+        'RoleArn': role,
+        'OutputDataConfig': {
+            'S3OutputPath': output_url
         },
-        "ResourceConfig": {
-            "InstanceCount": 2,
-            "InstanceType": "ml.c4.8xlarge",
-            "VolumeSizeInGB": 50
+        'ResourceConfig': {
+            'InstanceCount': 2,
+            'InstanceType': 'ml.c4.8xlarge',
+            'VolumeSizeInGB': 50
         },
-        "TrainingJobName": job_name,
-        "HyperParameters": {
-            "k": "10",
-            "feature_dim": "784",
-            "mini_batch_size": "500",
-            "force_dense": "True"
+        'TrainingJobName': job_name,
+        'HyperParameters': {
+            'k': '10',
+            'feature_dim': '784',
+            'mini_batch_size': '500',
+            'force_dense': 'True'
         },
-        "StoppingCondition": {
-            "MaxRuntimeInSeconds": 60 * 60
+        'StoppingCondition': {
+            'MaxRuntimeInSeconds': 60 * 60
         },
-        "InputDataConfig": [
+        'InputDataConfig': [
             {
-                "ChannelName": "train",
-                "DataSource": {
-                    "S3DataSource": {
-                        "S3DataType": "S3Prefix",
-                        "S3Uri": data_url,
-                        "S3DataDistributionType": "FullyReplicated"
+                'ChannelName': 'train',
+                'DataSource': {
+                    'S3DataSource': {
+                        'S3DataType': 'S3Prefix',
+                        'S3Uri': data_url,
+                        'S3DataDistributionType': 'FullyReplicated'
                     }
                 },
-                "CompressionType": "None",
-                "RecordWrapperType": "None"
+                'CompressionType': 'None',
+                'RecordWrapperType': 'None'
             }
         ]
     }
 
-create_tuning_params = {"HyperParameterTuningJobName": job_name,
-                        "HyperParameterTuningJobConfig": {
-                            "Strategy": "Bayesian",
-                            "HyperParameterTuningJobObjective": {
-                                "Type": "Maximize",
-                                "MetricName": "test_metric"
+create_tuning_params = {'HyperParameterTuningJobName': job_name,
+                        'HyperParameterTuningJobConfig': {
+                            'Strategy': 'Bayesian',
+                            'HyperParameterTuningJobObjective': {
+                                'Type': 'Maximize',
+                                'MetricName': 'test_metric'
                             },
-                            "ResourceLimits": {
-                                "MaxNumberOfTrainingJobs": 123,
-                                "MaxParallelTrainingJobs": 123
+                            'ResourceLimits': {
+                                'MaxNumberOfTrainingJobs': 123,
+                                'MaxParallelTrainingJobs': 123
                             },
-                            "ParameterRanges": {
-                                "IntegerParameterRanges": [
+                            'ParameterRanges': {
+                                'IntegerParameterRanges': [
                                     {
-                                        "Name": "k",
-                                        "MinValue": "2",
-                                        "MaxValue": "10"
+                                        'Name': 'k',
+                                        'MinValue': '2',
+                                        'MaxValue': '10'
                                     },
                                 ]
                             }
                         },
-                        "TrainingJobDefinition": {
-                            "StaticHyperParameters":
+                        'TrainingJobDefinition': {
+                            'StaticHyperParameters':
                                 create_training_params['HyperParameters'],
-                            "AlgorithmSpecification":
+                            'AlgorithmSpecification':
                                 create_training_params['AlgorithmSpecification'],
-                            "RoleArn": "string",
-                            "InputDataConfig":
+                            'RoleArn': 'string',
+                            'InputDataConfig':
                                 create_training_params['InputDataConfig'],
-                            "OutputDataConfig":
+                            'OutputDataConfig':
                                 create_training_params['OutputDataConfig'],
-                            "ResourceConfig":
+                            'ResourceConfig':
                                 create_training_params['ResourceConfig'],
-                            "StoppingCondition": dict(MaxRuntimeInSeconds=60 * 60)
+                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
                         }
                         }
 
-db_config = {"Re4sourceConfig": {
-    "InstanceCount": 3,
-    "InstanceType": "ml.c4.4config_test",
-    "VolumeSizeInGB": 25
-}
+db_config = {'Tags': [
+    {
+        'Key': 'test-db-key',
+        'Value': 'test-db-value',
+    },
+]
 }
 
 
@@ -168,7 +169,7 @@ class TestSageMakerHook(unittest.TestCase):
         configuration.load_test_config()
         db.merge_conn(
             models.Connection(
-                conn_id='sagemaker_test_conn',
+                conn_id='sagemaker_test_conn_id',
                 conn_type='sagemaker',
                 login='access_id',
                 password='access_key',
@@ -191,12 +192,28 @@ class TestSageMakerHook(unittest.TestCase):
                           hook.check_for_url, data_url)
         self.assertEqual(hook.check_for_url(data_url), True)
 
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'check_for_url')
+    def test_check_valid_training(self, mock_check_url, mock_client):
+        mock_client.return_value = None
+        hook = SageMakerHook()
+        hook.check_valid_training_input(create_training_params)
+        mock_check_url.assert_called_once_with(data_url)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'check_for_url')
+    def test_check_valid_tuning(self, mock_check_url, mock_client):
+        mock_client.return_value = None
+        hook = SageMakerHook()
+        hook.check_valid_tuning_input(create_tuning_params)
+        mock_check_url.assert_called_once_with(data_url)
+
     @mock.patch.object(SageMakerHook, 'get_client_type')
     def test_conn(self, mock_get_client):
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
                              region_name='us-east-1'
                              )
-        self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_conn')
+        self.assertEqual(hook.sagemaker_conn_id, 'sagemaker_test_conn_id')
         mock_get_client.assert_called_once_with('sagemaker',
                                                 region_name='us-east-1'
                                                 )
@@ -208,7 +225,7 @@ class TestSageMakerHook(unittest.TestCase):
                  test_list_training_job_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.list_training_job(name_contains=job_name,
                                           status_equals='InProgress')
         mock_session.list_training_jobs. \
@@ -223,7 +240,7 @@ class TestSageMakerHook(unittest.TestCase):
                  test_list_tuning_job_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.list_tuning_job(name_contains=job_name,
                                         status_equals='InProgress')
         mock_session.list_hyper_parameter_tuning_job. \
@@ -240,7 +257,7 @@ class TestSageMakerHook(unittest.TestCase):
                  test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.create_training_job(create_training_params)
         mock_session.create_training_job.assert_called_once_with(**create_training_params)
         self.assertEqual(response, test_arn_return)
@@ -254,7 +271,7 @@ class TestSageMakerHook(unittest.TestCase):
                  test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn',
+        hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
                                            use_db_config=True)
         response = hook_use_db_config.create_training_job(create_training_params)
         updated_config = copy.deepcopy(create_training_params)
@@ -262,17 +279,36 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.create_training_job.assert_called_once_with(**updated_config)
         self.assertEqual(response, test_arn_return)
 
+    @mock.patch.object(SageMakerHook, 'check_valid_tuning_input')
     @mock.patch.object(SageMakerHook, 'get_conn')
-    def test_create_tuning_job(self, mock_client):
+    def test_create_tuning_job(self, mock_client, mock_check_tuning):
         mock_session = mock.Mock()
         attrs = {'create_hyper_parameter_tuning_job.return_value':
                  test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn')
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.create_tuning_job(create_tuning_params)
         mock_session.create_hyper_parameter_tuning_job.\
             assert_called_once_with(**create_tuning_params)
+        self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'check_valid_tuning_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_create_tuning_job_db_config(self, mock_client, mock_check_tuning):
+        mock_check_tuning.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_hyper_parameter_tuning_job.return_value':
+                 test_arn_return}
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
+                             use_db_config=True)
+        response = hook.create_tuning_job(create_tuning_params)
+        updated_config = copy.deepcopy(create_tuning_params)
+        updated_config.update(db_config)
+        mock_session.create_hyper_parameter_tuning_job. \
+            assert_called_once_with(**updated_config)
         self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -281,8 +317,8 @@ class TestSageMakerHook(unittest.TestCase):
         attrs = {'describe_training_job.return_value': 'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
-        response = hook.describe_training_job()
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.describe_training_job(job_name)
         mock_session.describe_training_job.\
             assert_called_once_with(TrainingJobName=job_name)
         self.assertEqual(response, 'InProgress')
@@ -294,8 +330,8 @@ class TestSageMakerHook(unittest.TestCase):
                  'InProgress'}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn', job_name=job_name)
-        response = hook.describe_tuning_job()
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.describe_tuning_job(job_name)
         mock_session.describe_hyper_parameter_tuning_job.\
             assert_called_once_with(HyperParameterTuningJobName=job_name)
         self.assertEqual(response, 'InProgress')
