@@ -92,7 +92,7 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         configuration.load_test_config()
         self.sagemaker = SageMakerCreateTrainingJobOperator(
             task_id='test_sagemaker_operator',
-            job_name='my_test_job',
+            job_name=job_name,
             sagemaker_conn_id='sagemaker_test_id',
             training_job_config=create_training_params,
             use_db_config=True
@@ -109,7 +109,6 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         hook_init.assert_called_once_with(
             sagemaker_conn_id='sagemaker_test_id',
-            job_name='my_test_job',
             use_db_config=True)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -120,7 +119,6 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
                                           {"HTTPStatusCode": 200}}
         self.sagemaker.execute(None)
         mock_training.assert_called_once_with(create_training_params)
-        self.assertEqual(self.sagemaker.job_name, 'my_test_job')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_training_job')
