@@ -108,9 +108,8 @@ class TestSageMakerTrainingSensor(unittest.TestCase):
         # make sure we called 4 times(terminated when its compeleted)
         self.assertEqual(mock_describe_job.call_count, 4)
 
-        # make sure the hook was initialized with the specific job_name
+        # make sure the hook was initialized with the specific params
         hook_init.assert_called_with(aws_conn_id='aws_test',
-                                     job_name='test_job_name',
                                      region_name='us-east-1')
 
 
