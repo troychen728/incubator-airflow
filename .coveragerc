@@ -1,4 +1,4 @@
-#
+# 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,8 +17,9 @@
 # under the License.
 
 [report]
-include =
-    airflow/contrib/hooks/sagemaker_hook.py
-    airflow/contrib/operators/sagemaker_create_training_job_operator.py
-    airflow/contrib/sensors/sagemaker_base_sensor.py
-    airflow/contrib/sensors/sagemaker_training_sensor.py
+omit =
+    *contrib*
+    tests/*
+    scripts/*
+    dev/*
+    airflow/migrations/*
