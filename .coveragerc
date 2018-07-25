@@ -22,4 +22,4 @@ omit =
     tests/*
     scripts/*
     dev/*
-airflow/migrations/*
+    airflow/migrations/*
