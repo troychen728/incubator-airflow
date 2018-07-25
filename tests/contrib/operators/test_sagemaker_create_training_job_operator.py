@@ -92,7 +92,6 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         configuration.load_test_config()
         self.sagemaker = SageMakerCreateTrainingJobOperator(
             task_id='test_sagemaker_operator',
-            job_name=job_name,
             sagemaker_conn_id='sagemaker_test_id',
             training_job_config=create_training_params,
             use_db_config=True
