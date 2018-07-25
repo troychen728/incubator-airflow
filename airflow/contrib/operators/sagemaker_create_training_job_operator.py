@@ -30,8 +30,6 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
 
        This operator returns The ARN of the model created in Amazon SageMaker
 
-       :param job_name: The unique SageMaker Training job name. (templated)
-       :type job_name: string
        :param training_job_config:
        The configuration necessary to start a training job (templated)
        :type training_job_config: dict
@@ -54,41 +52,36 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                SageMakerCreateTrainingJobOperator(
                    task_id='sagemaker_training',
                    training_job_config=config,
-                   job_name='my_sagemaker_training',
                    use_db_config=True,
                    sagemaker_conn_id='sagemaker_customers_conn',
                    aws_conn_id='aws_customers_conn'
                )
        """
 
-    template_fields = ['training_job_config', 'job_name']
+    template_fields = ['training_job_config']
     template_ext = ()
     ui_color = '#ededed'
 
     @apply_defaults
     def __init__(self,
                  sagemaker_conn_id=None,
-                 job_name=None,
                  training_job_config=None,
                  use_db_config=False,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
         self.sagemaker_conn_id = sagemaker_conn_id
-        self.job_name = job_name
         self.training_job_config = training_job_config
         self.use_db_config = use_db_config
 
     def execute(self, context):
-        if self.job_name != self.training_job_config['TrainingJobName']:
-            raise AirflowException("Job_name is not the the same as the one in "
-                                   "training_job_config")
         sagemaker = SageMakerHook(
             sagemaker_conn_id=self.sagemaker_conn_id,
             use_db_config=self.use_db_config)
 
         self.log.info(
-            "Creating SageMaker Training Job %s." % self.job_name
+            "Creating SageMaker Training Job %s."
+            % self.training_job_config['TrainingJobName']
         )
         response = sagemaker.create_training_job(self.training_job_config)
         if not response['ResponseMetadata']['HTTPStatusCode'] \
