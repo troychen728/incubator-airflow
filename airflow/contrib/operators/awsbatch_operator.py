@@ -36,7 +36,7 @@ class AWSBatchOperator(BaseOperator):
     .. warning: the queue parameter was renamed to job_queue to segreggate the
                 internal CeleryExecutor queue from the AWS Batch internal queue.
 
-    :param job_name: the name for the job that will run on AWS Batch
+    :param job_name: the name for the job that will run on AWS Batch (templated)
     :type job_name: str
     :param job_definition: the job definition name on AWS Batch
     :type job_definition: str
@@ -59,7 +59,7 @@ class AWSBatchOperator(BaseOperator):
     ui_color = '#c3dae0'
     client = None
     arn = None
-    template_fields = ('overrides',)
+    template_fields = ('job_name', 'overrides',)
 
     @apply_defaults
     def __init__(self, job_name, job_definition, job_queue, overrides, max_retries=4200,
@@ -152,17 +152,19 @@ class AWSBatchOperator(BaseOperator):
             raise AirflowException('No job found for {}'.format(response))
 
         for job in response['jobs']:
-            if 'attempts' in job:
-                containers = job['attempts']
-                for container in containers:
-                    if (job['status'] == 'FAILED' or
-                            container['container']['exitCode'] != 0):
-                        raise AirflowException(
-                            'This containers encounter an error during '
-                            'execution {}'.format(job))
-            elif job['status'] is not 'SUCCEEDED':
+            job_status = job['status']
+            if job_status == 'FAILED':
+                reason = job['statusReason']
+                raise AirflowException('Job failed with status {}'.format(reason))
+            elif job_status in [
+                'SUBMITTED',
+                'PENDING',
+                'RUNNABLE',
+                'STARTING',
+                'RUNNING'
+            ]:
                 raise AirflowException(
-                    'This task is still pending {}'.format(job['status']))
+                    'This task is still pending {}'.format(job_status))
 
     def get_hook(self):
         return AwsHook(

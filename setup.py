@@ -24,6 +24,7 @@ import imp
 import logging
 import os
 import sys
+import subprocess
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,23 @@ class CleanCommand(Command):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
+class CompileAssets(Command):
+    """
+    Custom compile assets command to compile and build the frontend
+    assets using npm and webpack.
+    """
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def run(self):
+        subprocess.call('./airflow/www_rbac/compile_assets.sh')
+
+
 def git_version(version):
     """
     Return a version to identify the state of the underlying git repo. The version will
@@ -102,7 +120,8 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-async = [
+
+async_packages = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
     'gevent>=0.13'
@@ -189,7 +208,7 @@ slack = ['slackclient>=1.0.0']
 mongo = ['pymongo>=3.6.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
-ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
+ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9', 'sshtunnel>=0.1.4,<0.2']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -203,7 +222,7 @@ devel = [
     'click',
     'freezegun',
     'jira',
-    'lxml>=3.3.4',
+    'lxml>=4.0.0',
     'mock',
     'mongomock',
     'moto==1.1.19',
@@ -218,6 +237,10 @@ devel = [
     'rednose',
     'requests_mock'
 ]
+
+if not PY3:
+    devel += ['unittest2']
+
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
@@ -265,11 +288,11 @@ def do_setup():
             'gunicorn>=19.4.0, <20.0',
             'iso8601>=0.1.12',
             'jinja2>=2.7.3, <2.9.0',
-            'lxml>=3.6.0, <4.0',
+            'lxml>=4.0.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'pendulum==1.4.4',
-            'psutil>=4.2.0, <5.0.0',
+            'psutil>=4.2.0, <6.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
@@ -294,7 +317,7 @@ def do_setup():
             'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'atlas': atlas,
-            'async': async,
+            'async': async_packages,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
             'cassandra': cassandra,
@@ -363,6 +386,7 @@ def do_setup():
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,
+            'compile_assets': CompileAssets
         },
     )
 

@@ -16,12 +16,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 from six import BytesIO
-from urllib.parse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 import re
 import fnmatch
 
@@ -54,13 +58,13 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_bucket(Bucket=bucket_name)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_bucket(self, bucket_name):
         """
         Returns a boto3.S3.Bucket object
-
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
@@ -168,7 +172,8 @@ class S3Hook(AwsHook):
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
-        except:
+        except ClientError as e:
+            self.log.info(e.response["Error"]["Message"])
             return False
 
     def get_key(self, key, bucket_name=None):

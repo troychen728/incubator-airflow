@@ -19,6 +19,7 @@ import copy
 import os
 import six
 
+from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -81,7 +82,8 @@ class WorkerConfiguration(LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {
             'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
+            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor',
+            'AIRFLOW__CORE__SQL_ALCHEMY_CONN': conf.get('core', 'SQL_ALCHEMY_CONN')
         }
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
@@ -106,34 +108,31 @@ class WorkerConfiguration(LoggingMixin):
         dags_volume_name = 'airflow-dags'
         logs_volume_name = 'airflow-logs'
 
-        def _construct_volume(name, claim, subpath=None):
-            vo = {
+        def _construct_volume(name, claim):
+            volume = {
                 'name': name
             }
             if claim:
-                vo['persistentVolumeClaim'] = {
+                volume['persistentVolumeClaim'] = {
                     'claimName': claim
                 }
-                if subpath:
-                    vo['subPath'] = subpath
             else:
-                vo['emptyDir'] = {}
-            return vo
+                volume['emptyDir'] = {}
+            return volume
 
         volumes = [
             _construct_volume(
                 dags_volume_name,
-                self.kube_config.dags_volume_claim,
-                self.kube_config.dags_volume_subpath
+                self.kube_config.dags_volume_claim
             ),
             _construct_volume(
                 logs_volume_name,
-                self.kube_config.logs_volume_claim,
-                self.kube_config.logs_volume_subpath
+                self.kube_config.logs_volume_claim
             )
         ]
 
         dag_volume_mount_path = ""
+
         if self.kube_config.dags_volume_claim:
             dag_volume_mount_path = self.worker_airflow_dags
         else:
@@ -141,15 +140,25 @@ class WorkerConfiguration(LoggingMixin):
                 self.worker_airflow_dags,
                 self.kube_config.git_subpath
             )
-
-        volume_mounts = [{
+        dags_volume_mount = {
             'name': dags_volume_name,
             'mountPath': dag_volume_mount_path,
-            'readOnly': True
-        }, {
+            'readOnly': True,
+        }
+        if self.kube_config.dags_volume_subpath:
+            dags_volume_mount['subPath'] = self.kube_config.dags_volume_subpath
+
+        logs_volume_mount = {
             'name': logs_volume_name,
-            'mountPath': self.worker_airflow_logs
-        }]
+            'mountPath': self.worker_airflow_logs,
+        }
+        if self.kube_config.logs_volume_subpath:
+            logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
+
+        volume_mounts = [
+            dags_volume_mount,
+            logs_volume_mount
+        ]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
@@ -182,9 +191,9 @@ class WorkerConfiguration(LoggingMixin):
             limit_cpu=kube_executor_config.limit_cpu
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
-        annotations = {
-            'iam.cloud.google.com/service-account': gcp_sa_key
-        } if gcp_sa_key else {}
+        annotations = kube_executor_config.annotations.copy()
+        if gcp_sa_key:
+            annotations['iam.cloud.google.com/service-account'] = gcp_sa_key
 
         return Pod(
             namespace=namespace,
@@ -208,5 +217,8 @@ class WorkerConfiguration(LoggingMixin):
             volumes=volumes,
             volume_mounts=volume_mounts,
             resources=resources,
-            annotations=annotations
+            annotations=annotations,
+            node_selectors=(kube_executor_config.node_selectors or
+                            self.kube_config.kube_node_selectors),
+            affinity=kube_executor_config.affinity
         )

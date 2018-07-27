@@ -24,11 +24,9 @@ from __future__ import unicode_literals
 
 from future.standard_library import install_aliases
 
-from builtins import str
-from builtins import object, bytes
+from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
 from collections import namedtuple, defaultdict
-import cryptography
 from datetime import timedelta
 
 import dill
@@ -81,6 +79,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
+from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -104,6 +103,33 @@ XCOM_RETURN_KEY = 'return_value'
 Stats = settings.Stats
 
 
+class InvalidFernetToken(Exception):
+    # If Fernet isn't loaded we need a valid exception class to catch. If it is
+    # loaded this will get reset to the actual class once get_fernet() is called
+    pass
+
+
+class NullFernet(object):
+    """
+    A "Null" encryptor class that doesn't encrypt or decrypt but that presents
+    a similar interface to Fernet.
+
+    The purpose of this is to make the rest of the code not have to know the
+    difference, and to only display the message once, not 20 times when
+    `airflow initdb` is ran.
+    """
+    is_encrypted = False
+
+    def decrpyt(self, b):
+        return b
+
+    def encrypt(self, b):
+        return b
+
+
+_fernet = None
+
+
 def get_fernet():
     """
     Deferred load of Fernet key.
@@ -114,12 +140,25 @@ def get_fernet():
     :return: Fernet object
     :raises: AirflowException if there's a problem trying to load Fernet
     """
+    global _fernet
+    if _fernet:
+        return _fernet
     try:
-        from cryptography.fernet import Fernet
-    except ImportError:
-        raise AirflowException('Failed to import Fernet, it may not be installed')
+        from cryptography.fernet import Fernet, InvalidToken
+        global InvalidFernetToken
+        InvalidFernetToken = InvalidToken
+
+    except BuiltinImportError:
+        LoggingMixin().log.warn("cryptography not found - values will not be stored "
+                                "encrypted.",
+                                exc_info=1)
+        _fernet = NullFernet()
+        return _fernet
+
     try:
-        return Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
+        _fernet = Fernet(configuration.conf.get('core', 'FERNET_KEY').encode('utf-8'))
+        _fernet.is_encrypted = True
+        return _fernet
     except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
@@ -472,7 +511,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         Note that if a .airflowignore file is found while processing,
         the directory, it will behaves much like a .gitignore does,
         ignoring files that match any of the regex patterns specified
-        in the file.
+        in the file. **Note**: The patterns in .airflowignore are treated as
+        un-anchored regexes, not shell-like glob patterns.
         """
         start_dttm = timezone.utcnow()
         dag_folder = dag_folder or self.dag_folder
@@ -481,42 +521,24 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        if os.path.isfile(dag_folder):
-            self.process_file(dag_folder, only_if_updated=only_if_updated)
-        elif os.path.isdir(dag_folder):
-            for root, dirs, files in os.walk(dag_folder, followlinks=True):
-                patterns = []
-                ignore_file = os.path.join(root, '.airflowignore')
-                if os.path.isfile(ignore_file):
-                    with open(ignore_file, 'r') as f:
-                        patterns += [p for p in f.read().split('\n') if p]
-                for f in files:
-                    try:
-                        filepath = os.path.join(root, f)
-                        if not os.path.isfile(filepath):
-                            continue
-                        mod_name, file_ext = os.path.splitext(
-                            os.path.split(filepath)[-1])
-                        if file_ext != '.py' and not zipfile.is_zipfile(filepath):
-                            continue
-                        if not any(
-                                [re.findall(p, filepath) for p in patterns]):
-                            ts = timezone.utcnow()
-                            found_dags = self.process_file(
-                                filepath, only_if_updated=only_if_updated)
+        for filepath in list_py_file_paths(dag_folder):
+            try:
+                ts = timezone.utcnow()
+                found_dags = self.process_file(
+                    filepath, only_if_updated=only_if_updated)
 
-                            td = timezone.utcnow() - ts
-                            td = td.total_seconds() + (
-                                float(td.microseconds) / 1000000)
-                            stats.append(FileLoadStat(
-                                filepath.replace(dag_folder, ''),
-                                td,
-                                len(found_dags),
-                                sum([len(dag.tasks) for dag in found_dags]),
-                                str([dag.dag_id for dag in found_dags]),
-                            ))
-                    except Exception as e:
-                        self.log.exception(e)
+                td = timezone.utcnow() - ts
+                td = td.total_seconds() + (
+                    float(td.microseconds) / 1000000)
+                stats.append(FileLoadStat(
+                    filepath.replace(dag_folder, ''),
+                    td,
+                    len(found_dags),
+                    sum([len(dag.tasks) for dag in found_dags]),
+                    str([dag.dag_id for dag in found_dags]),
+                ))
+            except Exception as e:
+                self.log.exception(e)
         Stats.gauge(
             'collect_dags', (timezone.utcnow() - start_dttm).total_seconds(), 1)
         Stats.gauge(
@@ -673,9 +695,8 @@ class Connection(Base, LoggingMixin):
 
     def get_password(self):
         if self._password and self.is_encrypted:
-            try:
-                fernet = get_fernet()
-            except AirflowException:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt encrypted password for login={}, \
                     FERNET_KEY configuration is missing".format(self.login))
@@ -685,15 +706,9 @@ class Connection(Base, LoggingMixin):
 
     def set_password(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_encrypted = True
-            except AirflowException:
-                self.log.exception("Failed to load fernet while encrypting value, "
-                                   "using non-encrypted value.")
-                self._password = value
-                self.is_encrypted = False
+            fernet = get_fernet()
+            self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def password(cls):
@@ -702,9 +717,8 @@ class Connection(Base, LoggingMixin):
 
     def get_extra(self):
         if self._extra and self.is_extra_encrypted:
-            try:
-                fernet = get_fernet()
-            except AirflowException:
+            fernet = get_fernet()
+            if not fernet.is_encrypted:
                 raise AirflowException(
                     "Can't decrypt `extra` params for login={},\
                     FERNET_KEY configuration is missing".format(self.login))
@@ -714,15 +728,9 @@ class Connection(Base, LoggingMixin):
 
     def set_extra(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_extra_encrypted = True
-            except AirflowException:
-                self.log.exception("Failed to load fernet while encrypting value, "
-                                   "using non-encrypted value.")
-                self._extra = value
-                self.is_extra_encrypted = False
+            fernet = get_fernet()
+            self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value
             self.is_extra_encrypted = False
@@ -1654,9 +1662,9 @@ class TaskInstance(Base, LoggingMixin):
             self.state = State.SKIPPED
         except AirflowException as e:
             self.refresh_from_db()
-            # for case when task is marked as success externally
+            # for case when task is marked as success/failed externally
             # current behavior doesn't hit the success callback
-            if self.state == State.SUCCESS:
+            if self.state in {State.SUCCESS, State.FAILED}:
                 return
             else:
                 self.handle_failure(e, test_mode, context)
@@ -1747,7 +1755,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.state = State.UP_FOR_RETRY
                 self.log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
-                    self.email_alert(error, is_retry=True)
+                    self.email_alert(error)
             else:
                 self.state = State.FAILED
                 if task.retries:
@@ -1755,7 +1763,7 @@ class TaskInstance(Base, LoggingMixin):
                 else:
                     self.log.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
-                    self.email_alert(error, is_retry=False)
+                    self.email_alert(error)
         except Exception as e2:
             self.log.error('Failed to send email to: %s', task.email)
             self.log.exception(e2)
@@ -1919,7 +1927,7 @@ class TaskInstance(Base, LoggingMixin):
                 rendered_content = rt(attr, content, jinja_context)
                 setattr(task, attr, rendered_content)
 
-    def email_alert(self, exception, is_retry=False):
+    def email_alert(self, exception):
         task = self.task
         title = "Airflow alert: {self}".format(**locals())
         exception = str(exception).replace('\n', '<br>')
@@ -2056,6 +2064,11 @@ class TaskFail(Base):
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     duration = Column(Integer)
+
+    __table_args__ = (
+        Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
+              unique=False),
+    )
 
     def __init__(self, task, execution_date, start_date, end_date):
         self.dag_id = task.dag_id
@@ -3892,10 +3905,15 @@ class DAG(BaseDag, LoggingMixin):
         upstream and downstream neighbours based on the flag passed.
         """
 
+        # deep-copying self.task_dict takes a long time, and we don't want all
+        # the tasks anyway, so we copy the tasks manually later
+        task_dict = self.task_dict
+        self.task_dict = {}
         dag = copy.deepcopy(self)
+        self.task_dict = task_dict
 
         regex_match = [
-            t for t in dag.tasks if re.findall(task_regex, t.task_id)]
+            t for t in self.tasks if re.findall(task_regex, t.task_id)]
         also_include = []
         for t in regex_match:
             if include_downstream:
@@ -3904,7 +3922,9 @@ class DAG(BaseDag, LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=True)
 
         # Compiling the unique list of tasks that made the cut
-        dag.task_dict = {t.task_id: t for t in regex_match + also_include}
+        # Make sure to not recursively deepcopy the dag while copying the task
+        dag.task_dict = {t.task_id: copy.deepcopy(t, {id(t.dag): t.dag})
+                         for t in regex_match + also_include}
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
@@ -4373,32 +4393,23 @@ class Variable(Base, LoggingMixin):
         if self._val and self.is_encrypted:
             try:
                 fernet = get_fernet()
+                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
+            except InvalidFernetToken:
+                log.error("Can't decrypt _val for key={}, invalid token "
+                          "or value".format(self.key))
+                return None
             except Exception:
                 log.error("Can't decrypt _val for key={}, FERNET_KEY "
                           "configuration missing".format(self.key))
-                return None
-            try:
-                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
-            except cryptography.fernet.InvalidToken:
-                log.error("Can't decrypt _val for key={}, invalid token "
-                          "or value".format(self.key))
                 return None
         else:
             return self._val
 
     def set_val(self, value):
         if value:
-            try:
-                fernet = get_fernet()
-                self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
-                self.is_encrypted = True
-            except AirflowException:
-                self.log.exception(
-                    "Failed to load fernet while encrypting value, "
-                    "using non-encrypted value."
-                )
-                self._val = value
-                self.is_encrypted = False
+            fernet = get_fernet()
+            self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
+            self.is_encrypted = fernet.is_encrypted
 
     @declared_attr
     def val(cls):
