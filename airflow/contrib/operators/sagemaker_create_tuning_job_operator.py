@@ -80,9 +80,6 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
         self.use_db_config = use_db_config
 
     def execute(self, context):
-        if self.job_name != self.training_job_config['HyperParameterTuningJobName']:
-            raise AirflowException("Job_name is not the the same as the one in "
-                                   "tuning_job_config")
         sagemaker = SageMakerHook(sagemaker_conn_id=self.sagemaker_conn_id,
                                   region_name=self.region_name,
                                   use_db_config=self.use_db_config)
@@ -92,8 +89,8 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
             % self.tuning_job_config['HyperParameterTuningJobName']
         )
 
-        response = sagemaker.create_tunining_job(
-            tunning_job_config=self.tuning_job_config
+        response = sagemaker.create_tuning_job(
+            self.tuning_job_config
         )
         if not response['ResponseMetadata']['HTTPStatusCode'] \
            == 200:

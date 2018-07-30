@@ -32,94 +32,94 @@ from airflow.contrib.operators.sagemaker_create_tuning_job_operator \
     import SageMakerCreateHyperParameterTuningJobOperator
 from airflow.exceptions import AirflowException
 
-role = "test-role"
+role = 'test-role'
 
-bucket = "test-bucket"
+bucket = 'test-bucket'
 
-key = "test/data"
-data_url = "s3://{}/{}".format(bucket, key)
+key = 'test/data'
+data_url = 's3://{}/{}'.format(bucket, key)
 
-job_name = "test-job-name"
+job_name = 'test-job-name'
 
-image = "test-image"
+image = 'test-image'
 
-output_url = "s3://{}/test/output".format(bucket)
+output_url = 's3://{}/test/output'.format(bucket)
 
 create_training_params = \
     {
-        "AlgorithmSpecification": {
-            "TrainingImage": image,
-            "TrainingInputMode": "File"
+        'AlgorithmSpecification': {
+            'TrainingImage': image,
+            'TrainingInputMode': 'File'
         },
-        "RoleArn": role,
-        "OutputDataConfig": {
-            "S3OutputPath": output_url
+        'RoleArn': role,
+        'OutputDataConfig': {
+            'S3OutputPath': output_url
         },
-        "ResourceConfig": {
-            "InstanceCount": 2,
-            "InstanceType": "ml.c4.8xlarge",
-            "VolumeSizeInGB": 50
+        'ResourceConfig': {
+            'InstanceCount': 2,
+            'InstanceType': 'ml.c4.8xlarge',
+            'VolumeSizeInGB': 50
         },
-        "TrainingJobName": job_name,
-        "HyperParameters": {
-            "k": "10",
-            "feature_dim": "784",
-            "mini_batch_size": "500",
-            "force_dense": "True"
+        'TrainingJobName': job_name,
+        'HyperParameters': {
+            'k': '10',
+            'feature_dim': '784',
+            'mini_batch_size': '500',
+            'force_dense': 'True'
         },
-        "StoppingCondition": {
-            "MaxRuntimeInSeconds": 60 * 60
+        'StoppingCondition': {
+            'MaxRuntimeInSeconds': 60 * 60
         },
-        "InputDataConfig": [
+        'InputDataConfig': [
             {
-                "ChannelName": "train",
-                "DataSource": {
-                    "S3DataSource": {
-                        "S3DataType": "S3Prefix",
-                        "S3Uri": data_url,
-                        "S3DataDistributionType": "FullyReplicated"
+                'ChannelName': 'train',
+                'DataSource': {
+                    'S3DataSource': {
+                        'S3DataType': 'S3Prefix',
+                        'S3Uri': data_url,
+                        'S3DataDistributionType': 'FullyReplicated'
                     }
                 },
-                "CompressionType": "None",
-                "RecordWrapperType": "None"
+                'CompressionType': 'None',
+                'RecordWrapperType': 'None'
             }
         ]
     }
 
-create_tuning_params = {"HyperParameterTuningJobName": job_name,
-                        "HyperParameterTuningJobConfig": {
-                            "Strategy": "Bayesian",
-                            "HyperParameterTuningJobObjective": {
-                                "Type": "Maximize",
-                                "MetricName": "test_metric"
+create_tuning_params = {'HyperParameterTuningJobName': job_name,
+                        'HyperParameterTuningJobConfig': {
+                            'Strategy': 'Bayesian',
+                            'HyperParameterTuningJobObjective': {
+                                'Type': 'Maximize',
+                                'MetricName': 'test_metric'
                             },
-                            "ResourceLimits": {
-                                "MaxNumberOfTrainingJobs": 123,
-                                "MaxParallelTrainingJobs": 123
+                            'ResourceLimits': {
+                                'MaxNumberOfTrainingJobs': 123,
+                                'MaxParallelTrainingJobs': 123
                             },
-                            "ParameterRanges": {
-                                "IntegerParameterRanges": [
+                            'ParameterRanges': {
+                                'IntegerParameterRanges': [
                                     {
-                                        "Name": "k",
-                                        "MinValue": "2",
-                                        "MaxValue": "10"
+                                        'Name': 'k',
+                                        'MinValue': '2',
+                                        'MaxValue': '10'
                                     },
                                 ]
                             }
                         },
-                        "TrainingJobDefinition": {
-                            "StaticHyperParameters":
+                        'TrainingJobDefinition': {
+                            'StaticHyperParameters':
                                 create_training_params['HyperParameters'],
-                            "AlgorithmSpecification":
+                            'AlgorithmSpecification':
                                 create_training_params['AlgorithmSpecification'],
-                            "RoleArn": "string",
-                            "InputDataConfig":
+                            'RoleArn': 'string',
+                            'InputDataConfig':
                                 create_training_params['InputDataConfig'],
-                            "OutputDataConfig":
+                            'OutputDataConfig':
                                 create_training_params['OutputDataConfig'],
-                            "ResourceConfig":
+                            'ResourceConfig':
                                 create_training_params['ResourceConfig'],
-                            "StoppingCondition": dict(MaxRuntimeInSeconds=60 * 60)
+                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
                         }
                         }
 
@@ -130,39 +130,41 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
         configuration.load_test_config()
         self.sagemaker = SageMakerCreateHyperParameterTuningJobOperator(
             task_id='test_sagemaker_operator',
-            job_name='my_test_job',
-            sagemaker_conn_id='sagemaker_test_id',
-            tuning_job_config=create_tuning_params
+            sagemaker_conn_id='sagemaker_test_conn',
+            tuning_job_config=create_tuning_params,
+            region_name='us-east-1',
+            use_db_config=False
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_tuning_job')
     @mock.patch.object(SageMakerHook, '__init__')
     def test_hook_init(self, hook_init, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "testarn",
-                                    "ResponseMetadata":
-                                          {"HTTPStatusCode": 200}}
+        mock_tuning.return_value = {'TrainingJobArn': 'testarn',
+                                    'ResponseMetadata':
+                                    {'HTTPStatusCode': 200}}
         hook_init.return_value = None
         self.sagemaker.execute(None)
         hook_init.assert_called_once_with(
-            sagemaker_conn_id='sagemaker_test_id', job_name='my_test_job')
+            sagemaker_conn_id='sagemaker_test_conn',
+            region_name='us-east-1',
+            use_db_config=False)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_tuning_job')
     def test_execute_without_failure(self, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "testarn",
-                                    "ResponseMetadata":
-                                          {"HTTPStatusCode": 200}}
+        mock_tuning.return_value = {'TrainingJobArn': 'testarn',
+                                    'ResponseMetadata':
+                                    {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
         mock_tuning.assert_called_once_with(create_tuning_params)
-        self.assertEqual(self.sagemaker.job_name, 'my_test_job')
 
     @mock.patch.object(SageMakerHook, 'get_conn')
-    @mock.patch.object(SageMakerHook, 'create_training_job')
+    @mock.patch.object(SageMakerHook, 'create_tuning_job')
     def test_execute_with_failure(self, mock_tuning, mock_client):
-        mock_tuning.return_value = {"TrainingJobArn": "testarn",
-                                    "ResponseMetadata":
-                                          {"HTTPStatusCode": 404}}
+        mock_tuning.return_value = {'TrainingJobArn': 'testarn',
+                                    'ResponseMetadata':
+                                    {'HTTPStatusCode': 404}}
         self.assertRaises(AirflowException, self.sagemaker.execute, None)
 
 

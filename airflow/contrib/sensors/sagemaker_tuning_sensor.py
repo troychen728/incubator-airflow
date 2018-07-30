@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.contrib.hooks.emr_hook import SageMakerHook
-from airflow.contrib.sensors.emr_base_sensor import SageMakerBaseSensor
+from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_base_sensor import SageMakerBaseSensor
 from airflow.utils import apply_defaults
 
 
