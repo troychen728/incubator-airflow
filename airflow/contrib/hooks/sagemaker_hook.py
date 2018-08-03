@@ -18,6 +18,7 @@
 # under the License.
 import copy
 import time
+from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -88,6 +89,19 @@ class SageMakerHook(AwsHook):
     def check_status(self, non_terminal_states,
                      failed_state, key,
                      describe_function, *args):
+        """
+        :param non_terminal_states: the set of non_terminal states
+        :type non_terminal_states: dict
+        :param failed_state: the set of failed states
+        :type failed_state: dict
+        :param key: the key of the response dict
+        that points to the state
+        :type key: string
+        :param describe_function: the function used to retrieve the status
+        :type describe_function: python callable
+        :param args: the arguments for the function
+        :return: None
+        """
         sec = 0
         running = True
 
@@ -105,8 +119,11 @@ class SageMakerHook(AwsHook):
                 status = describe_function(*args)[key]
                 self.log.info("Job still running for %s seconds... "
                               "current status is %s" % (sec, status))
-            except:
+            except KeyError:
                 raise AirflowException("Could not get status of the SageMaker job")
+            except ClientError:
+                raise AirflowException("AWS request failed, check log for more info")
+
             if status in non_terminal_states:
                 running = True
             elif status in failed_state:
@@ -231,4 +248,3 @@ class SageMakerHook(AwsHook):
         return self.conn\
             .describe_hyper_parameter_tuning_job(
                 HyperParameterTuningJobName=tuning_job_name)
-

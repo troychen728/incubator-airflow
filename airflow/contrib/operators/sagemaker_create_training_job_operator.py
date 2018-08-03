@@ -101,7 +101,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
             region_name=self.region_name,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time
-            )
+        )
 
         self.log.info(
             "Creating SageMaker Training Job %s."
