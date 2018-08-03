@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import copy
+import time
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
@@ -34,11 +35,15 @@ class SageMakerHook(AwsHook):
                  sagemaker_conn_id=None,
                  use_db_config=False,
                  region_name=None,
+                 check_interval=2,
+                 max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerHook, self).__init__(*args, **kwargs)
         self.sagemaker_conn_id = sagemaker_conn_id
         self.use_db_config = use_db_config
         self.region_name = region_name
+        self.check_interval = check_interval
+        self.max_ingestion_time = max_ingestion_time
         self.conn = self.get_conn()
 
     def check_for_url(self, s3url):
@@ -80,6 +85,37 @@ class SageMakerHook(AwsHook):
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
 
+    def check_status(self, non_terminal_states,
+                     failed_state, key,
+                     describe_function, *args):
+        sec = 0
+        running = True
+
+        while running:
+
+            sec = sec + self.check_interval
+
+            if self.max_ingestion_time and sec > self.max_ingestion_time:
+                # ensure that the job gets killed if the max ingestion time is exceeded
+                raise AirflowException("SageMaker job took more than "
+                                       "%s seconds", self.max_ingestion_time)
+
+            time.sleep(self.check_interval)
+            try:
+                status = describe_function(*args)[key]
+                self.log.info("Job still running for %s seconds... "
+                              "current status is %s" % (sec, status))
+            except:
+                raise AirflowException("Could not get status of the SageMaker job")
+            if status in non_terminal_states:
+                running = True
+            elif status in failed_state:
+                raise AirflowException("SageMaker job failed")
+            else:
+                running = False
+
+        self.log.info('SageMaker Job Compeleted')
+
     def get_conn(self):
         """
         Establish an AWS connection
@@ -111,11 +147,13 @@ class SageMakerHook(AwsHook):
         return self.conn.list_hyper_parameter_tuning_job(
             NameContains=name_contains, StatusEquals=status_equals)
 
-    def create_training_job(self, training_job_config):
+    def create_training_job(self, training_job_config, wait=False):
         """
         Create a training job
         :param training_job_config: the config for training
         :type training_job_config: dict
+        :param wait: if the program should keep running until job finishes
+        :param wait: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -129,8 +167,15 @@ class SageMakerHook(AwsHook):
 
         self.check_valid_training_input(training_job_config)
 
-        return self.conn.create_training_job(
+        response = self.conn.create_training_job(
             **training_job_config)
+        if wait:
+            self.check_status(['InProgress', 'Stopping', 'Stopped'],
+                              ['Failed'],
+                              'TrainingJobStatus',
+                              self.describe_training_job,
+                              training_job_config['TrainingJobName'])
+        return response
 
     def create_tuning_job(self, tuning_job_config):
         """
@@ -175,3 +220,15 @@ class SageMakerHook(AwsHook):
         return self.conn\
             .describe_hyper_parameter_tuning_job(
                 HyperParameterTuningJobName=tuning_job_name)
+
+    def describe_model(self, tuning_job_name):
+        """
+        :param tuning_job_name: the name of the training job
+        :type tuning_job_name: string
+        Return the tuning job info associated with the current job_name
+        :return: A dict contains all the tuning job info
+        """
+        return self.conn\
+            .describe_hyper_parameter_tuning_job(
+                HyperParameterTuningJobName=tuning_job_name)
+
