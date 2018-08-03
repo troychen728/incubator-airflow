@@ -237,14 +237,3 @@ class SageMakerHook(AwsHook):
         return self.conn\
             .describe_hyper_parameter_tuning_job(
                 HyperParameterTuningJobName=tuning_job_name)
-
-    def describe_model(self, tuning_job_name):
-        """
-        :param tuning_job_name: the name of the training job
-        :type tuning_job_name: string
-        Return the tuning job info associated with the current job_name
-        :return: A dict contains all the tuning job info
-        """
-        return self.conn\
-            .describe_hyper_parameter_tuning_job(
-                HyperParameterTuningJobName=tuning_job_name)
