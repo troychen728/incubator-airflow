@@ -169,7 +169,7 @@ create_transform_params = \
         },
         'TransformOutput': {
             'S3OutputPath': output_url,
-            },
+        },
         'TransformResources': {
             'InstanceType': 'ml.m4.xlarge',
             'InstanceCount': 123
@@ -182,7 +182,7 @@ create_model_params = \
         'PrimaryContainer': {
             'Image': image,
             'ModelDataUrl': output_url,
-            },
+        },
         'ExecutionRoleArn': role
     }
 
@@ -428,7 +428,8 @@ class TestSageMakerHook(unittest.TestCase):
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.create_transform_job(create_transform_params)
-        mock_session.create_transform_job.assert_called_once_with(**create_transform_params)
+        mock_session.create_transform_job.assert_called_once_with(
+            **create_transform_params)
         self.assertEqual(response, test_arn_return)
 
     @mock.patch.object(SageMakerHook, 'check_valid_transform_input')
