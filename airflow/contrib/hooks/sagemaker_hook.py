@@ -67,8 +67,8 @@ class SageMakerHook(AwsHook):
     def check_valid_training_input(self, training_config):
         """
         Run checks before a training starts
-        :param config: training_config
-        :type config: dict
+        :param training_config: training_config
+        :type training_config: dict
         :return: None
         """
         for channel in training_config['InputDataConfig']:
@@ -78,13 +78,23 @@ class SageMakerHook(AwsHook):
     def check_valid_tuning_input(self, tuning_config):
         """
         Run checks before a tuning job starts
-        :param config: tuning_config
-        :type config: dict
+        :param tuning_config: tuning_config
+        :type tuning_config: dict
         :return: None
         """
         for channel in tuning_config['TrainingJobDefinition']['InputDataConfig']:
             self.check_for_url(channel['DataSource']
                                ['S3DataSource']['S3Uri'])
+
+    def check_valid_transform_input(self, transform_config):
+        """
+        Run checks before a transform job starts
+        :param transform_config: tuning_config
+        :type transform_config: dict
+        :return: None
+        """
+        self.check_for_url(transform_config
+                           ['TransformInput']['DataSource']['S3Uri'])
 
     def check_status(self, non_terminal_states,
                      failed_state, key,
@@ -204,8 +214,8 @@ class SageMakerHook(AwsHook):
         if self.use_db_config:
             if not self.sagemaker_conn_id:
                 raise AirflowException(
-                    "sagemaker connection id must be present to \
-                    read sagemaker tunning job configuration.")
+                    "SageMaker connection id must be present to \
+                    read SageMaker tunning job configuration.")
 
             sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
 
@@ -217,10 +227,44 @@ class SageMakerHook(AwsHook):
         return self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
 
+    def create_transform_job(self, transform_job_config):
+        """
+        Create a tuning job
+        :param transform_job_config: the config for transform job
+        :type transform_job_config: dict
+        :return: A dict that contains ARN of the transform job.
+        """
+        if self.use_db_config:
+            if not self.sagemaker_conn_id:
+                raise AirflowException(
+                    "SageMaker connection id must be present to \
+                    read SageMaker transform job configuration.")
+
+            sagemaker_conn = self.get_connection(self.sagemaker_conn_id)
+
+            config = sagemaker_conn.extra_dejson.copy()
+            transform_job_config.update(config)
+
+        self.check_valid_transform_input(transform_job_config)
+
+        return self.conn.create_transform_job(
+            **transform_job_config)
+
+    def create_model(self, model_config):
+        """
+        Create a tuning job
+        :param model_config: the config for tuning
+        :type model_config: dict
+        :return: A dict that contains ARN of the model.
+        """
+
+        return self.conn.create_model(
+            **model_config)
+
     def describe_training_job(self, training_job_name):
         """
         :param training_job_name: the name of the training job
-        :type train_job_name: string
+        :type training_job_name: string
         Return the training job info associated with the current job_name
         :return: A dict contains all the training job info
         """
@@ -229,7 +273,7 @@ class SageMakerHook(AwsHook):
 
     def describe_tuning_job(self, tuning_job_name):
         """
-        :param tuning_job_name: the name of the training job
+        :param tuning_job_name: the name of the tuning job
         :type tuning_job_name: string
         Return the tuning job info associated with the current job_name
         :return: A dict contains all the tuning job info
@@ -237,3 +281,25 @@ class SageMakerHook(AwsHook):
         return self.conn\
             .describe_hyper_parameter_tuning_job(
                 HyperParameterTuningJobName=tuning_job_name)
+
+    def describe_transform_job(self, transform_job_name):
+        """
+        :param transform_job_name: the name of the transform job
+        :type transform_job_name: string
+        Return the tuning job info associated with the current job_name
+        :return: A dict contains all the tuning job info
+        """
+        return self.conn\
+            .describe_transform_job(
+                TransformJobName=transform_job_name)
+
+    def describe_model(self, model_name):
+        """
+        :param model_name: the name of the transform job
+        :type model_name: string
+        Return the tuning job info associated with the current job_name
+        :return: A dict contains all the tuning job info
+        """
+        return self.conn\
+            .describe_model(
+                ModelName=model_name)
