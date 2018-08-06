@@ -508,7 +508,7 @@ class TestSageMakerHook(unittest.TestCase):
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
         response = hook.describe_model(model_name)
         mock_session.describe_model.\
-            assert_called_once_with(ModelName=job_name)
+            assert_called_once_with(ModelName=model_name)
         self.assertEqual(response, 'InProgress')
 
 
