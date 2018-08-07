@@ -290,7 +290,7 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
-        response = hook.create_training_job(create_training_params)
+        response = hook.create_training_job(create_training_params, wait=False)
         mock_session.create_training_job.assert_called_once_with(**create_training_params)
         self.assertEqual(response, test_arn_return)
 
@@ -305,7 +305,8 @@ class TestSageMakerHook(unittest.TestCase):
         mock_client.return_value = mock_session
         hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
                                            use_db_config=True)
-        response = hook_use_db_config.create_training_job(create_training_params)
+        response = hook_use_db_config.create_training_job(create_training_params,
+                                                          wait=False)
         updated_config = copy.deepcopy(create_training_params)
         updated_config.update(db_config)
         mock_session.create_training_job.assert_called_once_with(**updated_config)
