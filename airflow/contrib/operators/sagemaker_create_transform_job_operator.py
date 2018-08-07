@@ -33,6 +33,11 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
        :param transform_job_config:
        The configuration necessary to start a transform job (templated)
        :type transform_job_config: dict
+       :param model_config:
+       The configuration necessary to create a model, the default is none
+       which means that user should provide a created model in transform_job_config
+       If given, will be used to create a model before creating transform job
+       :type model_config: dict
        :param region_name: The AWS region_name
        :type region_name: string
        :param sagemaker_conn_id: The SageMaker connection ID to use.
@@ -62,7 +67,8 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
             sagemaker_transform =
                SageMakerCreateTransformJobOperator(
                    task_id='sagemaker_transform',
-                   transform_job_config=config,
+                   transform_job_config=config_transform,
+                   model_config=config_model,
                    region_name='us-west-2'
                    sagemaker_conn_id='sagemaker_customers_conn',
                    use_db_config=True,
@@ -77,6 +83,7 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  transform_job_config=None,
+                 model_config=None,
                  region_name=None,
                  sagemaker_conn_id=None,
                  use_db_config=False,
@@ -88,6 +95,7 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
 
         self.sagemaker_conn_id = sagemaker_conn_id
         self.transform_job_config = transform_job_config
+        self.model_config = model_config
         self.use_db_config = use_db_config
         self.region_name = region_name
         self.wait = wait
@@ -102,6 +110,13 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time
         )
+
+        if self.model_config:
+            self.log.info(
+                "Creating SageMaker Model %s for transform job"
+                % self.model_config['ModelName']
+            )
+            sagemaker.create_model(self.model_config)
 
         self.log.info(
             "Creating SageMaker transform Job %s."

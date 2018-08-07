@@ -227,11 +227,13 @@ class SageMakerHook(AwsHook):
         return self.conn.create_hyper_parameter_tuning_job(
             **tuning_job_config)
 
-    def create_transform_job(self, transform_job_config):
+    def create_transform_job(self, transform_job_config, wait=False):
         """
         Create a tuning job
         :param transform_job_config: the config for transform job
         :type transform_job_config: dict
+        :param wait: if the program should keep running until job finishes
+        :param wait: bool
         :return: A dict that contains ARN of the transform job.
         """
         if self.use_db_config:
@@ -247,8 +249,15 @@ class SageMakerHook(AwsHook):
 
         self.check_valid_transform_input(transform_job_config)
 
-        return self.conn.create_transform_job(
+        response = self.conn.create_transform_job(
             **transform_job_config)
+        if wait:
+            self.check_status(['InProgress', 'Stopping', 'Stopped'],
+                              ['Failed'],
+                              'TransformJobStatus',
+                              self.describe_transform_job,
+                              transform_job_config['TransformJobName'])
+        return response
 
     def create_model(self, model_config):
         """
