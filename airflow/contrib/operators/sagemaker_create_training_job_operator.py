@@ -81,7 +81,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                  sagemaker_conn_id=None,
                  use_db_config=False,
                  wait=True,
-                 check_interval=2,
+                 check_interval=5,
                  max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
