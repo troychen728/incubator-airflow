@@ -80,7 +80,7 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                  region_name=None,
                  sagemaker_conn_id=None,
                  use_db_config=False,
-                 wait=False,
+                 wait=True,
                  check_interval=2,
                  max_ingestion_time=None,
                  *args, **kwargs):

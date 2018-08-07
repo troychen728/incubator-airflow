@@ -36,7 +36,7 @@ class SageMakerHook(AwsHook):
                  sagemaker_conn_id=None,
                  use_db_config=False,
                  region_name=None,
-                 check_interval=2,
+                 check_interval=5,
                  max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerHook, self).__init__(*args, **kwargs)
@@ -164,7 +164,7 @@ class SageMakerHook(AwsHook):
         return self.conn.list_hyper_parameter_tuning_job(
             NameContains=name_contains, StatusEquals=status_equals)
 
-    def create_training_job(self, training_job_config, wait=False):
+    def create_training_job(self, training_job_config, wait=True):
         """
         Create a training job
         :param training_job_config: the config for training
