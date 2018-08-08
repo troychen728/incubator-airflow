@@ -26,7 +26,7 @@ from future.standard_library import install_aliases
 
 from builtins import str, object, bytes, ImportError as BuiltinImportError
 import copy
-from collections import namedtuple, defaultdict
+from collections import namedtuple, defaultdict, Hashable
 from datetime import timedelta
 
 import dill
@@ -60,9 +60,10 @@ from sqlalchemy import (
 from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
-from sqlalchemy_utc import UtcDateTime
 
-from croniter import croniter
+from croniter import (
+    croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
+)
 import six
 
 from airflow import settings, utils
@@ -88,6 +89,7 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
+from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -412,8 +414,18 @@ class DagBag(BaseDagBag, LoggingMixin):
                     try:
                         dag.is_subdag = False
                         self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        if isinstance(dag._schedule_interval, six.string_types):
+                            croniter(dag._schedule_interval)
                         found_dags.append(dag)
                         found_dags += dag.subdags
+                    except (CroniterBadCronError,
+                            CroniterBadDateError,
+                            CroniterNotAlphaError) as cron_e:
+                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                        self.import_errors[dag.full_filepath] = \
+                            "Invalid Cron expression: " + str(cron_e)
+                        self.file_last_changed[dag.full_filepath] = \
+                            file_last_changed_on_disk
                     except AirflowDagCycleException as cycle_exception:
                         self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
                         self.import_errors[dag.full_filepath] = str(cycle_exception)
@@ -2098,6 +2110,10 @@ class Log(Base):
     owner = Column(String(500))
     extra = Column(Text)
 
+    __table_args__ = (
+        Index('idx_log_dag', dag_id),
+    )
+
     def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
         self.event = event
@@ -3233,7 +3249,7 @@ class DAG(BaseDag, LoggingMixin):
             )
 
         self.schedule_interval = schedule_interval
-        if schedule_interval in cron_presets:
+        if isinstance(schedule_interval, Hashable) and schedule_interval in cron_presets:
             self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
@@ -3333,7 +3349,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             following = timezone.make_aware(cron.get_next(datetime), self.timezone)
             return timezone.convert_to_utc(following)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
@@ -3348,7 +3364,7 @@ class DAG(BaseDag, LoggingMixin):
             cron = croniter(self._schedule_interval, dttm)
             prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
             return timezone.convert_to_utc(prev)
-        elif isinstance(self._schedule_interval, timedelta):
+        elif self._schedule_interval is not None:
             return dttm - self._schedule_interval
 
     def get_run_dates(self, start_date, end_date=None):
@@ -5141,7 +5157,10 @@ class DagRun(Base, LoggingMixin):
     @property
     def is_backfill(self):
         from airflow.jobs import BackfillJob
-        return self.run_id.startswith(BackfillJob.ID_PREFIX)
+        return (
+            self.run_id is not None and
+            self.run_id.startswith(BackfillJob.ID_PREFIX)
+        )
 
     @classmethod
     @provide_session

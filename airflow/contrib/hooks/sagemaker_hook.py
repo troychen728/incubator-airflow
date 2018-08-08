@@ -36,7 +36,7 @@ class SageMakerHook(AwsHook):
                  sagemaker_conn_id=None,
                  use_db_config=False,
                  region_name=None,
-                 check_interval=2,
+                 check_interval=5,
                  max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerHook, self).__init__(*args, **kwargs)
@@ -126,7 +126,8 @@ class SageMakerHook(AwsHook):
 
             time.sleep(self.check_interval)
             try:
-                status = describe_function(*args)[key]
+                response = describe_function(*args)
+                status = response[key]
                 self.log.info("Job still running for %s seconds... "
                               "current status is %s" % (sec, status))
             except KeyError:
@@ -137,7 +138,8 @@ class SageMakerHook(AwsHook):
             if status in non_terminal_states:
                 running = True
             elif status in failed_state:
-                raise AirflowException("SageMaker job failed")
+                raise AirflowException("SageMaker job failed because %s"
+                                       % response['FailureReason'])
             else:
                 running = False
 
@@ -174,13 +176,13 @@ class SageMakerHook(AwsHook):
         return self.conn.list_hyper_parameter_tuning_job(
             NameContains=name_contains, StatusEquals=status_equals)
 
-    def create_training_job(self, training_job_config, wait=False):
+    def create_training_job(self, training_job_config, wait_for_completion=True):
         """
         Create a training job
         :param training_job_config: the config for training
         :type training_job_config: dict
-        :param wait: if the program should keep running until job finishes
-        :param wait: bool
+        :param wait_for_completion: if the program should keep running until job finishes
+        :param wait_for_completion: bool
         :return: A dict that contains ARN of the training job.
         """
         if self.use_db_config:
@@ -196,7 +198,7 @@ class SageMakerHook(AwsHook):
 
         response = self.conn.create_training_job(
             **training_job_config)
-        if wait:
+        if wait_for_completion:
             self.check_status(['InProgress', 'Stopping', 'Stopped'],
                               ['Failed'],
                               'TrainingJobStatus',
@@ -273,7 +275,7 @@ class SageMakerHook(AwsHook):
     def describe_training_job(self, training_job_name):
         """
         :param training_job_name: the name of the training job
-        :type training_job_name: string
+        :type train_job_name: string
         Return the training job info associated with the current job_name
         :return: A dict contains all the training job info
         """
