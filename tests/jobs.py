@@ -1046,6 +1046,39 @@ class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
         pass
 
+    def test_localtaskjob_essential_attr(self):
+        """
+        Check whether essential attributes
+        of LocalTaskJob can be assigned with
+        proper values without intervention
+        """
+        dag = DAG(
+            'test_localtaskjob_essential_attr',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        ti = dr.get_task_instance(task_id=op1.task_id)
+
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
+
+        essential_attr = ["dag_id", "job_type", "start_date", "hostname"]
+
+        check_result_1 = [hasattr(job1, attr) for attr in essential_attr]
+        self.assertTrue(all(check_result_1))
+
+        check_result_2 = [getattr(job1, attr) is not None for attr in essential_attr]
+        self.assertTrue(all(check_result_2))
+
     @patch('os.getpid')
     def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()
@@ -1492,6 +1525,39 @@ class SchedulerJobTest(unittest.TestCase):
             session=session)
 
         self.assertEqual(0, len(res))
+
+    def test_find_executable_task_instances_concurrency_queued(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency_queued'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=3)
+        task1 = DummyOperator(dag=dag, task_id='dummy1')
+        task2 = DummyOperator(dag=dag, task_id='dummy2')
+        task3 = DummyOperator(dag=dag, task_id='dummy3')
+        dagbag = self._make_simple_dag_bag([dag])
+
+        scheduler = SchedulerJob()
+        session = settings.Session()
+        dag_run = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dag_run.execution_date)
+        ti2 = TI(task2, dag_run.execution_date)
+        ti3 = TI(task3, dag_run.execution_date)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(1, len(res))
+        self.assertEqual(res[0].key, ti3.key)
 
     def test_find_executable_task_instances_task_concurrency(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_task_concurrency'

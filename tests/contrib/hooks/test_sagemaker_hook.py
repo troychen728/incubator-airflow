@@ -117,49 +117,81 @@ create_training_params = \
         ]
     }
 
-create_tuning_params = {'HyperParameterTuningJobName': job_name,
-                        'HyperParameterTuningJobConfig': {
-                            'Strategy': 'Bayesian',
-                            'HyperParameterTuningJobObjective': {
-                                'Type': 'Maximize',
-                                'MetricName': 'test_metric'
-                            },
-                            'ResourceLimits': {
-                                'MaxNumberOfTrainingJobs': 123,
-                                'MaxParallelTrainingJobs': 123
-                            },
-                            'ParameterRanges': {
-                                'IntegerParameterRanges': [
-                                    {
-                                        'Name': 'k',
-                                        'MinValue': '2',
-                                        'MaxValue': '10'
-                                    },
-                                ]
-                            }
-                        },
-                        'TrainingJobDefinition': {
-                            'StaticHyperParameters':
-                                create_training_params['HyperParameters'],
-                            'AlgorithmSpecification':
-                                create_training_params['AlgorithmSpecification'],
-                            'RoleArn': 'string',
-                            'InputDataConfig':
-                                create_training_params['InputDataConfig'],
-                            'OutputDataConfig':
-                                create_training_params['OutputDataConfig'],
-                            'ResourceConfig':
-                                create_training_params['ResourceConfig'],
-                            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
-                        }
-                        }
-
-db_config = {'Tags': [
+create_tuning_params = \
     {
-        'Key': 'test-db-key',
-        'Value': 'test-db-value',
+        'HyperParameterTuningJobName': job_name,
+        'HyperParameterTuningJobConfig': {
+            'Strategy': 'Bayesian',
+            'HyperParameterTuningJobObjective': {
+                'Type': 'Maximize',
+                'MetricName': 'test_metric'
+            },
+            'ResourceLimits': {
+                'MaxNumberOfTrainingJobs': 123,
+                'MaxParallelTrainingJobs': 123
+            },
+            'ParameterRanges': {
+                'IntegerParameterRanges': [
+                    {
+                        'Name': 'k',
+                        'MinValue': '2',
+                        'MaxValue': '10'
+                    },
+
+                ]
+            }
+        },
+        'TrainingJobDefinition': {
+            'StaticHyperParameters': create_training_params['HyperParameters'],
+            'AlgorithmSpecification': create_training_params['AlgorithmSpecification'],
+            'RoleArn': 'string',
+            'InputDataConfig': create_training_params['InputDataConfig'],
+            'OutputDataConfig': create_training_params['OutputDataConfig'],
+            'ResourceConfig': create_training_params['ResourceConfig'],
+            'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
+        }
+    }
+
+db_config = {
+    'Tags': [
+        {
+            'Key': 'test-db-key',
+            'Value': 'test-db-value',
+
+        },
+    ]
+}
+
+DESCRIBE_TRAINING_INPROGRESS_RETURN = {
+    'TrainingJobStatus': 'InProgress',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_COMPELETED_RETURN = {
+    'TrainingJobStatus': 'Compeleted',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_FAILED_RETURN = {
+    'TrainingJobStatus': 'Failed',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
     },
-]
+    'FailureReason': 'Unknown'
+}
+DESCRIBE_TRAINING_STOPPING_RETURN = {
+    'TrainingJobStatus': 'Stopping',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
+}
+DESCRIBE_TRAINING_STOPPED_RETURN = {
+    'TrainingJobStatus': 'Stopped',
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+    }
 }
 
 
@@ -258,7 +290,8 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
-        response = hook.create_training_job(create_training_params)
+        response = hook.create_training_job(create_training_params,
+                                            wait_for_completion=False)
         mock_session.create_training_job.assert_called_once_with(**create_training_params)
         self.assertEqual(response, test_arn_return)
 
@@ -273,11 +306,52 @@ class TestSageMakerHook(unittest.TestCase):
         mock_client.return_value = mock_session
         hook_use_db_config = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
                                            use_db_config=True)
-        response = hook_use_db_config.create_training_job(create_training_params)
+        response = hook_use_db_config.create_training_job(create_training_params,
+                                                          wait_for_completion=False)
         updated_config = copy.deepcopy(create_training_params)
         updated_config.update(db_config)
         mock_session.create_training_job.assert_called_once_with(**updated_config)
         self.assertEqual(response, test_arn_return)
+
+    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_training_ends_with_wait_on(self, mock_client, mock_check_training):
+        mock_check_training.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_training_job.return_value':
+                 test_arn_return,
+                 'describe_training_job.side_effect':
+                     [DESCRIBE_TRAINING_INPROGRESS_RETURN,
+                      DESCRIBE_TRAINING_STOPPING_RETURN,
+                      DESCRIBE_TRAINING_STOPPED_RETURN,
+                      DESCRIBE_TRAINING_COMPELETED_RETURN]
+                 }
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id_1')
+        hook.create_training_job(create_training_params, wait_for_completion=True)
+        self.assertEqual(mock_session.describe_training_job.call_count, 4)
+
+    @mock.patch.object(SageMakerHook, 'check_valid_training_input')
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    def test_training_throws_error_when_failed_with_wait_on(
+            self, mock_client, mock_check_training):
+        mock_check_training.return_value = True
+        mock_session = mock.Mock()
+        attrs = {'create_training_job.return_value':
+                 test_arn_return,
+                 'describe_training_job.side_effect':
+                     [DESCRIBE_TRAINING_INPROGRESS_RETURN,
+                      DESCRIBE_TRAINING_STOPPING_RETURN,
+                      DESCRIBE_TRAINING_STOPPED_RETURN,
+                      DESCRIBE_TRAINING_FAILED_RETURN]
+                 }
+        mock_session.configure_mock(**attrs)
+        mock_client.return_value = mock_session
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id_1')
+        self.assertRaises(AirflowException, hook.create_training_job,
+                          create_training_params, wait_for_completion=True)
+        self.assertEqual(mock_session.describe_training_job.call_count, 4)
 
     @mock.patch.object(SageMakerHook, 'check_valid_tuning_input')
     @mock.patch.object(SageMakerHook, 'get_conn')

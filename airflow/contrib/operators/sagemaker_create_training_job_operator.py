@@ -19,7 +19,7 @@
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
@@ -36,16 +36,26 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
        :param region_name: The AWS region_name
        :type region_name: string
        :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type aws_conn_id: string
+       :type sagemaker_conn_id: string
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
        If set to true, will automatically update the training config
        with what's in db, so the db config doesn't need to
        included everything, but what's there does replace the ones
        in the training_job_config, so be careful
-       :type use_db_config:
+       :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
+       :param wait_for_completion: if the operator should block
+       until training job finishes
+       :type wait_for_completion: bool
+       :param check_interval: if wait is set to be true, this is the time interval
+       which the operator will check the status of the training job
+       :type check_interval: int
+       :param max_ingestion_time: if wait is set to be true, the operator will fail
+       if the training job hasn't finish within the max_ingestion_time
+       (Caution: be careful to set this parameters because training can take very long)
+       :type max_ingestion_time: int
 
        **Example**:
            The following operator would start a training job when executed
@@ -54,12 +64,12 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
                SageMakerCreateTrainingJobOperator(
                    task_id='sagemaker_training',
                    training_job_config=config,
-                   use_db_config=True,
                    region_name='us-west-2'
                    sagemaker_conn_id='sagemaker_customers_conn',
+                   use_db_config=True,
                    aws_conn_id='aws_customers_conn'
                )
-       """
+    """
 
     template_fields = ['training_job_config']
     template_ext = ()
@@ -67,10 +77,13 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 sagemaker_conn_id=None,
                  training_job_config=None,
-                 use_db_config=False,
                  region_name=None,
+                 sagemaker_conn_id=None,
+                 use_db_config=False,
+                 wait_for_completion=True,
+                 check_interval=5,
+                 max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerCreateTrainingJobOperator, self).__init__(*args, **kwargs)
 
@@ -78,18 +91,26 @@ class SageMakerCreateTrainingJobOperator(BaseOperator):
         self.training_job_config = training_job_config
         self.use_db_config = use_db_config
         self.region_name = region_name
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.max_ingestion_time = max_ingestion_time
 
     def execute(self, context):
         sagemaker = SageMakerHook(
             sagemaker_conn_id=self.sagemaker_conn_id,
             use_db_config=self.use_db_config,
-            region_name=self.region_name)
+            region_name=self.region_name,
+            check_interval=self.check_interval,
+            max_ingestion_time=self.max_ingestion_time
+        )
 
         self.log.info(
             "Creating SageMaker Training Job %s."
             % self.training_job_config['TrainingJobName']
         )
-        response = sagemaker.create_training_job(self.training_job_config)
+        response = sagemaker.create_training_job(
+            self.training_job_config,
+            wait_for_completion=self.wait_for_completion)
         if not response['ResponseMetadata']['HTTPStatusCode'] \
            == 200:
             raise AirflowException(
