@@ -19,7 +19,7 @@
 
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
 
@@ -46,6 +46,16 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
        :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
+       :param wait_for_completion: if the operator should block
+       until training job finishes
+       :type wait_for_completion: bool
+       :param check_interval: if wait is set to be true, this is the time interval
+       which the operator will check the status of the training job
+       :type check_interval: int
+       :param max_ingestion_time: if wait is set to be true, the operator will fail
+       if the training job hasn't finish within the max_ingestion_time
+       (Caution: be careful to set this parameters because training can take very long)
+       :type max_ingestion_time: int
 
        **Example**:
            The following operator would start a training job when executed
@@ -70,6 +80,9 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
                  region_name=None,
                  tuning_job_config=None,
                  use_db_config=False,
+                 wait_for_completion=True,
+                 check_interval=5,
+                 max_ingestion_time=None,
                  *args, **kwargs):
         super(SageMakerCreateHyperParameterTuningJobOperator, self)\
             .__init__(*args, **kwargs)
@@ -78,11 +91,17 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
         self.region_name = region_name
         self.tuning_job_config = tuning_job_config
         self.use_db_config = use_db_config
+        self.wait_for_completion = wait_for_completion
+        self.check_interval = check_interval
+        self.max_ingestion_time = max_ingestion_time
 
     def execute(self, context):
         sagemaker = SageMakerHook(sagemaker_conn_id=self.sagemaker_conn_id,
                                   region_name=self.region_name,
-                                  use_db_config=self.use_db_config)
+                                  use_db_config=self.use_db_config,
+                                  check_interval=self.check_interval,
+                                  max_ingestion_time=self.max_ingestion_time
+                                  )
 
         self.log.info(
             "Creating SageMaker Hyper Parameter Tunning Job %s"
@@ -90,7 +109,8 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
         )
 
         response = sagemaker.create_tuning_job(
-            self.tuning_job_config
+            self.tuning_job_config,
+            wait_for_completion=self.wait_for_completion
         )
         if not response['ResponseMetadata']['HTTPStatusCode'] \
            == 200:
