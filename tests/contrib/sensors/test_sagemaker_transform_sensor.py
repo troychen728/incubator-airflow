@@ -28,7 +28,7 @@ except ImportError:
         mock = None
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_Transform_sensor \
+from airflow.contrib.sensors.sagemaker_transform_sensor \
     import SageMakerTransformSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
 from airflow.exceptions import AirflowException
@@ -37,7 +37,7 @@ DESCRIBE_TRANSFORM_INPROGRESS_RETURN = {
     'TransformJobStatus': 'InProgress',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
-    }
+    }ßß
 }
 DESCRIBE_TRANSFORM_COMPELETED_RETURN = {
     'TransformJobStatus': 'Compeleted',
