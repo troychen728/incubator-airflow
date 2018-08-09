@@ -151,7 +151,6 @@ class TestSageMakerTrainingOperator(unittest.TestCase):
             sagemaker_conn_id='sagemaker_test_conn',
             region_name='us-east-1',
             use_db_config=False,
-            wait_for_completion=False,
             check_interval=5
         )
 
