@@ -96,9 +96,10 @@ class TestSageMakertransformOperator(unittest.TestCase):
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
     @mock.patch.object(SageMakerHook, '__init__')
-    def test_hook_init(self, hook_init, mock_transform, mock_client):
+    def test_hook_init(self, hook_init, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {"TransformJobArn": "testarn",
                                        "ResponseMetadata":
                                        {"HTTPStatusCode": 200}}
@@ -126,8 +127,9 @@ class TestSageMakertransformOperator(unittest.TestCase):
                                                )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'create_model')
     @mock.patch.object(SageMakerHook, 'create_transform_job')
-    def test_execute_with_failure(self, mock_transform, mock_client):
+    def test_execute_with_failure(self, mock_transform, mock_model, mock_client):
         mock_transform.return_value = {"TransformJobArn": "testarn",
                                        "ResponseMetadata":
                                        {"HTTPStatusCode": 404}}

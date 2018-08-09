@@ -37,7 +37,7 @@ DESCRIBE_TRANSFORM_INPROGRESS_RETURN = {
     'TransformJobStatus': 'InProgress',
     'ResponseMetadata': {
         'HTTPStatusCode': 200,
-    }ßß
+    }
 }
 DESCRIBE_TRANSFORM_COMPELETED_RETURN = {
     'TransformJobStatus': 'Compeleted',

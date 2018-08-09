@@ -120,7 +120,7 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
 
         self.log.info(
             "Creating SageMaker transform Job %s."
-            % self.transform_job_config['transformJobName']
+            % self.transform_job_config['TransformJobName']
         )
         response = sagemaker.create_transform_job(self.transform_job_config,
                                                   wait=self.wait)
