@@ -361,9 +361,9 @@ class TestSageMakerHook(unittest.TestCase):
                  test_arn_return}
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
-        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
-                             wait_for_completion=False)
-        response = hook.create_tuning_job(create_tuning_params)
+        hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id')
+        response = hook.create_tuning_job(create_tuning_params,
+                                          wait_for_completion=False)
         mock_session.create_hyper_parameter_tuning_job.\
             assert_called_once_with(**create_tuning_params)
         self.assertEqual(response, test_arn_return)
@@ -378,9 +378,9 @@ class TestSageMakerHook(unittest.TestCase):
         mock_session.configure_mock(**attrs)
         mock_client.return_value = mock_session
         hook = SageMakerHook(sagemaker_conn_id='sagemaker_test_conn_id',
-                             use_db_config=True,
-                             wait_for_completion=False)
-        response = hook.create_tuning_job(create_tuning_params)
+                             use_db_config=True)
+        response = hook.create_tuning_job(create_tuning_params,
+                                          wait_for_completion=False)
         updated_config = copy.deepcopy(create_tuning_params)
         updated_config.update(db_config)
         mock_session.create_hyper_parameter_tuning_job. \
