@@ -39,31 +39,31 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
        :type sagemaker_conn_id: string
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
-       If set to true, will automatically update the training config
+       If set to true, will automatically update the tuning config
        with what's in db, so the db config doesn't need to
        included everything, but what's there does replace the ones
-       in the training_job_config, so be careful
+       in the tuning_job_config, so be careful
        :type use_db_config: bool
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
        :param wait_for_completion: if the operator should block
-       until training job finishes
+       until tuning job finishes
        :type wait_for_completion: bool
        :param check_interval: if wait is set to be true, this is the time interval
-       which the operator will check the status of the training job
+       which the operator will check the status of the tuning job
        :type check_interval: int
        :param max_ingestion_time: if wait is set to be true, the operator will fail
-       if the training job hasn't finish within the max_ingestion_time
-       (Caution: be careful to set this parameters because training can take very long)
+       if the tuning job hasn't finish within the max_ingestion_time
+       (Caution: be careful to set this parameters because tuning can take very long)
        :type max_ingestion_time: int
 
        **Example**:
-           The following operator would start a training job when executed
+           The following operator would start a tuning job when executed
 
             sagemaker_tuning =
                SageMakerCreateHyperParameterTuningJobOperator(
                    task_id='sagemaker_tuning',
-                   training_job_config=config,
+                   tuning_job_config=config,
                    job_name='my_sagemaker_tuning'
                    sagemaker_conn_id='sagemaker_customers_conn'
                    aws_conn_id='aws_customers_conn'
@@ -115,6 +115,6 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
         if not response['ResponseMetadata']['HTTPStatusCode'] \
            == 200:
             raise AirflowException(
-                "Sagemaker Training Job creation failed: %s" % response)
+                "Sagemaker Tuning Job creation failed: %s" % response)
         else:
             return response

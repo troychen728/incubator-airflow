@@ -62,7 +62,10 @@ class SageMakerHook(AwsHook):
         if not s3hook.check_for_key(key=key, bucket_name=bucket)\
            and not s3hook.check_for_prefix(
                 prefix=key, bucket_name=bucket, delimiter='/'):
-            raise AirflowException("The input S3 Key {} does not exist in the Bucket {}"
+            # check if s3 key exists in the case user provides a single file
+            # or if s3 prefix exists in the case user provides a prefix for files
+            raise AirflowException("The input S3 Key "
+                                   "or Prefix {} does not exist in the Bucket {}"
                                    .format(key, bucket))
         return True
 

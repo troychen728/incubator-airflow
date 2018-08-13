@@ -45,47 +45,6 @@ image = 'test-image'
 
 output_url = 's3://{}/test/output'.format(bucket)
 
-create_training_params = \
-    {
-        'AlgorithmSpecification': {
-            'TrainingImage': image,
-            'TrainingInputMode': 'File'
-        },
-        'RoleArn': role,
-        'OutputDataConfig': {
-            'S3OutputPath': output_url
-        },
-        'ResourceConfig': {
-            'InstanceCount': 2,
-            'InstanceType': 'ml.c4.8xlarge',
-            'VolumeSizeInGB': 50
-        },
-        'TrainingJobName': job_name,
-        'HyperParameters': {
-            'k': '10',
-            'feature_dim': '784',
-            'mini_batch_size': '500',
-            'force_dense': 'True'
-        },
-        'StoppingCondition': {
-            'MaxRuntimeInSeconds': 60 * 60
-        },
-        'InputDataConfig': [
-            {
-                'ChannelName': 'train',
-                'DataSource': {
-                    'S3DataSource': {
-                        'S3DataType': 'S3Prefix',
-                        'S3Uri': data_url,
-                        'S3DataDistributionType': 'FullyReplicated'
-                    }
-                },
-                'CompressionType': 'None',
-                'RecordWrapperType': 'None'
-            }
-        ]
-    }
-
 create_tuning_params = {'HyperParameterTuningJobName': job_name,
                         'HyperParameterTuningJobConfig': {
                             'Strategy': 'Bayesian',
@@ -109,16 +68,43 @@ create_tuning_params = {'HyperParameterTuningJobName': job_name,
                         },
                         'TrainingJobDefinition': {
                             'StaticHyperParameters':
-                                create_training_params['HyperParameters'],
+                                {
+                                    'k': '10',
+                                    'feature_dim': '784',
+                                    'mini_batch_size': '500',
+                                    'force_dense': 'True'
+                                },
                             'AlgorithmSpecification':
-                                create_training_params['AlgorithmSpecification'],
+                                {
+                                    'TrainingImage': image,
+                                    'TrainingInputMode': 'File'
+                                },
                             'RoleArn': 'string',
                             'InputDataConfig':
-                                create_training_params['InputDataConfig'],
+                                [
+                                    {
+                                        'ChannelName': 'train',
+                                        'DataSource': {
+                                            'S3DataSource': {
+                                                'S3DataType': 'S3Prefix',
+                                                'S3Uri': data_url,
+                                                'S3DataDistributionType': 'FullyReplicated'
+                                            }
+                                        },
+                                        'CompressionType': 'None',
+                                        'RecordWrapperType': 'None'
+                                    }
+                                ],
                             'OutputDataConfig':
-                                create_training_params['OutputDataConfig'],
+                                {
+                                    'S3OutputPath': output_url
+                                },
                             'ResourceConfig':
-                                create_training_params['ResourceConfig'],
+                                {
+                                    'InstanceCount': 2,
+                                    'InstanceType': 'ml.c4.8xlarge',
+                                    'VolumeSizeInGB': 50
+                                },
                             'StoppingCondition': dict(MaxRuntimeInSeconds=60 * 60)
                         }
                         }
