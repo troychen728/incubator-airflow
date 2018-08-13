@@ -212,16 +212,22 @@ class TestSageMakerHook(unittest.TestCase):
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(S3Hook, 'check_for_key')
     @mock.patch.object(S3Hook, 'check_for_bucket')
+    @mock.patch.object(S3Hook, 'check_for_prefix')
     def test_check_for_url(self,
-                           mock_check_bucket, mock_check_key, mock_client):
+                           mock_check_prefix,
+                           mock_check_bucket,
+                           mock_check_key,
+                           mock_client):
         mock_client.return_value = None
         hook = SageMakerHook()
-        mock_check_bucket.side_effect = [False, True, True]
-        mock_check_key.side_effect = [False, True]
+        mock_check_bucket.side_effect = [False, True, True, True]
+        mock_check_key.side_effect = [False, True, False]
+        mock_check_prefix.side_effect = [False, True, True]
         self.assertRaises(AirflowException,
                           hook.check_for_url, data_url)
         self.assertRaises(AirflowException,
                           hook.check_for_url, data_url)
+        self.assertEqual(hook.check_for_url(data_url), True)
         self.assertEqual(hook.check_for_url(data_url), True)
 
     @mock.patch.object(SageMakerHook, 'get_conn')

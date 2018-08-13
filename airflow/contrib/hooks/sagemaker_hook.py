@@ -59,9 +59,11 @@ class SageMakerHook(AwsHook):
         if not s3hook.check_for_bucket(bucket_name=bucket):
             raise AirflowException(
                 "The input S3 Bucket {} does not exist ".format(bucket))
-        if not s3hook.check_for_key(key=key, bucket_name=bucket):
-            raise AirflowException("The input S3 Key {} does not exist in the Bucket"
-                                   .format(s3url, bucket))
+        if not s3hook.check_for_key(key=key, bucket_name=bucket)\
+           and not s3hook.check_for_prefix(
+                prefix=key, bucket_name=bucket, delimiter='/'):
+            raise AirflowException("The input S3 Key {} does not exist in the Bucket {}"
+                                   .format(key, bucket))
         return True
 
     def check_valid_training_input(self, training_config):

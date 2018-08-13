@@ -70,7 +70,7 @@ class SageMakerCreateHyperParameterTuningJobOperator(BaseOperator):
                )
        """
 
-    template_fields = ['tunning_job_config']
+    template_fields = ['tuning_job_config']
     template_ext = ()
     ui_color = '#ededed'
 
