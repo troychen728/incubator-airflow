@@ -88,7 +88,8 @@ create_tuning_params = {'HyperParameterTuningJobName': job_name,
                                             'S3DataSource': {
                                                 'S3DataType': 'S3Prefix',
                                                 'S3Uri': data_url,
-                                                'S3DataDistributionType': 'FullyReplicated'
+                                                'S3DataDistributionType':
+                                                    'FullyReplicated'
                                             }
                                         },
                                         'CompressionType': 'None',
