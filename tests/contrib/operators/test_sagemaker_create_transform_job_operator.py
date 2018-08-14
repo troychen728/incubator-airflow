@@ -123,7 +123,7 @@ class TestSageMakertransformOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         mock_model.assert_called_once_with(create_model_params)
         mock_transform.assert_called_once_with(create_transform_params,
-                                               wait=True
+                                               wait_for_completion=True
                                                )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
