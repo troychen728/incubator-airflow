@@ -29,7 +29,6 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        Initiate a SageMaker HyperParameter Tuning Job
 
        This operator returns The ARN of the model created in Amazon SageMaker
-
        :param sagemaker_conn_id: The SageMaker connection ID to use.
        :type sagemaker_conn_id: string
        :param region_name: The AWS region_name
@@ -56,7 +55,6 @@ class SageMakerCreateTuningJobOperator(BaseOperator):
        :type max_ingestion_time: int
        :param aws_conn_id: The AWS connection ID to use.
        :type aws_conn_id: string
-
        **Example**:
            The following operator would start a tuning job when executed
 
