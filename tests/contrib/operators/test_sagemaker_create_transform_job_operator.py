@@ -91,7 +91,7 @@ class TestSageMakertransformOperator(unittest.TestCase):
             model_config=create_model_params,
             region_name='us-west-2',
             use_db_config=True,
-            wait=True,
+            wait_for_completion=False,
             check_interval=5
         )
 
@@ -123,7 +123,7 @@ class TestSageMakertransformOperator(unittest.TestCase):
         self.sagemaker.execute(None)
         mock_model.assert_called_once_with(create_model_params)
         mock_transform.assert_called_once_with(create_transform_params,
-                                               wait_for_completion=True
+                                               wait_for_completion=False
                                                )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
