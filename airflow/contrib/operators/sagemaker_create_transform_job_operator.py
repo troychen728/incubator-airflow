@@ -30,6 +30,8 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
 
        This operator returns The ARN of the model created in Amazon SageMaker
 
+       :param sagemaker_conn_id: The SageMaker connection ID to use.
+       :type sagemaker_conn_id: string
        :param transform_job_config:
        The configuration necessary to start a transform job (templated)
        :type transform_job_config: dict
@@ -40,8 +42,6 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
        :type model_config: dict
        :param region_name: The AWS region_name
        :type region_name: string
-       :param sagemaker_conn_id: The SageMaker connection ID to use.
-       :type sagemaker_conn_id: string
        :param use_db_config: Whether or not to use db config
        associated with sagemaker_conn_id.
        If set to true, will automatically update the transform config
@@ -49,8 +49,6 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
        included everything, but what's there does replace the ones
        in the transform_job_config, so be careful
        :type use_db_config: bool
-       :param aws_conn_id: The AWS connection ID to use.
-       :type aws_conn_id: string
        :param wait_for_completion: if the program should keep running until job finishes
        :type wait_for_completion: bool
        :param check_interval: if wait is set to be true, this is the time interval
@@ -60,6 +58,8 @@ class SageMakerCreateTransformJobOperator(BaseOperator):
        if the transform job hasn't finish within the max_ingestion_time
        (Caution: be careful to set this parameters because transform can take very long)
        :type max_ingestion_time: int
+       :param aws_conn_id: The AWS connection ID to use.
+       :type aws_conn_id: string
 
        **Example**:
            The following operator would start a transform job when executed
