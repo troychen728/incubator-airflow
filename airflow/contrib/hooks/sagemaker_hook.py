@@ -89,7 +89,7 @@ class SageMakerHook(AwsHook):
     def check_valid_transform_input(self, transform_config):
         """
         Run checks before a transform job starts
-        :param transform_config: tuning_config
+        :param transform_config: transform_config
         :type transform_config: dict
         :return: None
         """
@@ -265,7 +265,7 @@ class SageMakerHook(AwsHook):
     def create_model(self, model_config):
         """
         Create a tuning job
-        :param model_config: the config for tuning
+        :param model_config: the config for model
         :type model_config: dict
         :return: A dict that contains ARN of the model.
         """
@@ -298,20 +298,9 @@ class SageMakerHook(AwsHook):
         """
         :param transform_job_name: the name of the transform job
         :type transform_job_name: string
-        Return the tuning job info associated with the current job_name
-        :return: A dict contains all the tuning job info
+        Return the transform job info associated with the current job_name
+        :return: A dict contains all the transform job info
         """
         return self.conn\
             .describe_transform_job(
                 TransformJobName=transform_job_name)
-
-    def describe_model(self, model_name):
-        """
-        :param model_name: the name of the transform job
-        :type model_name: string
-        Return the tuning job info associated with the current job_name
-        :return: A dict contains all the tuning job info
-        """
-        return self.conn\
-            .describe_model(
-                ModelName=model_name)
